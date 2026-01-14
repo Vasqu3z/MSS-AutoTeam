@@ -628,12 +628,13 @@ class mssApp:
         lpaneMiis = tk.LabelFrame(tabOptions, text="Miis")
         lpaneMiis.grid(row=0, column=0)
         labelMiis = tk.Label(lpaneMiis, text="Please enter the path to your RFL_DB.dat\nMore info: https://jackharrhy.github.io/mii-lib/")
+        labelMiis.grid(row=0,column=0)
         varPath = tk.StringVar()
         varPath.set(options["MiiDBPath"])
-        entryPath = tk.Entry(lpaneMiis, textvariable=varPath)
-        entryPath.grid(row=0, column=0)
+        entryPath = tk.Entry(lpaneMiis, textvariable=varPath, )
+        entryPath.grid(row=1, column=0)
         buttonMiiSave = tk.Button(lpaneMiis, text="Save")
-        buttonMiiSave.grid(row=0, column=1)
+        buttonMiiSave.grid(row=1, column=1)
         buttonMiiSave.bind('<ButtonPress-1>', lambda event: self.updateChars(varPath.get()))
 
 
