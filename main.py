@@ -9,11 +9,8 @@ import dolphin_memory_engine as DMM
 from pathlib import Path
 import pygetwindow as gw
 import json
-import configparser
-import vgamepad as vg
 import keyboard as kb
 import time
-import array
 from mii import MiiDatabase, MiiParser, MiiType
 
 
@@ -80,7 +77,7 @@ for mii in mii_list:
 
 captains = [0, 1, 2, 3, 4, 5, 6, 9, 10, 11, 17, 19]
 
-speed_const = 0.025
+speed_const = 0.03
 
 
 
@@ -567,7 +564,9 @@ class mssApp:
 
         buttonStart = tk.Button(tabMain, text="Run it!", command=myFormationizer.automate)
         buttonStart.grid(row=3,column=0)
-        labelWarning = tk.Label(tabMain, text="Before using, make sure you have the following Gecko code enabled: \n040802b4 60000000\n040802b8 60000000\n0406aed8 48000b80\nHit the Run button while the game is open and you are \nat the main menu, hovering \"Exhibition Mode\"\nProgrammed by STG, with extensive help from Whodeyy \nand the rest of the MSS community")
+        labelWarning = tk.Label(tabMain, text="Before using, make sure you have the following Gecko code enabled: \n040802b4 60000000\n040802b8 60000000\n0406aed8 48000b80\n"+
+                                              "And set these to the controls:\nWSAD = Up/Down/Left/Right\nK = A button\nL = B button\nQ = + button\nE = - button\n"+
+                                              "Hit the Run button while the game is open and you are \nat the main menu, hovering \"Exhibition Mode\"\nProgrammed by STG, with extensive help from Whodeyy \nand the rest of the MSS community")
         labelWarning.grid(row=1,column=1, rowspan=4)
 
         tabTeams = tk.Frame(nb, height=1400, width=700)
