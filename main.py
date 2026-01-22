@@ -604,7 +604,7 @@ class mssApp:
         buttonStart.grid(row=3,column=0)
         labelWarning = tk.Label(tabMain, text="Before using, make sure you have the following Gecko code enabled: \n040802b4 60000000\n040802b8 60000000\n0406aed8 48000b80\n"+
                                               "And set these to the controls:\nWSAD = Up/Down/Left/Right\nK = A button\nL = B button\nQ = - button\nE = + button\n"+
-                                              "Hit the Run button while the game is open and you are \nat the main menu, hovering \"Exhibition Mode\"\nProgrammed by STG, with extensive help from Whodeyy \nand the rest of the MSS community")
+                                              "Hit the Run button while the game is open and you are \nat the main menu, hovering \"Exhibition Mode\"\nProgrammed by STG, with help from Whodeyy & Kircher \nand the rest of the MSS community")
         labelWarning.grid(row=1,column=1, rowspan=4)
 
         tabTeams = tk.Frame(nb, height=1400, width=700)
