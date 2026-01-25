@@ -10,6 +10,7 @@ from pathlib import Path
 import pygetwindow as gw
 import json
 import keyboard as kb
+import mouse
 import time
 from mii import MiiDatabase, MiiParser, MiiType
 
@@ -33,6 +34,19 @@ options = file
 options.setdefault('DefaultAwayCaptainID', 0)
 options.setdefault('DefaultHomeCaptainID', 1)
 options.setdefault('AutoStartGame', False)
+options.setdefault('KeyBindings', {})
+default_key_bindings = {
+    "Up": "w",
+    "Down": "s",
+    "Left": "a",
+    "Right": "d",
+    "A": "k",
+    "B": "l",
+    "Plus": "e",
+    "Minus": "q"
+}
+for action, key in default_key_bindings.items():
+    options['KeyBindings'].setdefault(action, key)
 
 def str_to_hex(str):
     hx = 0x0
@@ -423,57 +437,73 @@ class Formationizer:
                     return [r, c]
         return -1
 
-    def press_a(self):
-        kb.press('k')
+    def get_binding(self, action):
+        return options.get("KeyBindings", {}).get(action, default_key_bindings.get(action, ""))
+
+    def is_mouse_binding(self, binding):
+        return str(binding).strip().lower().startswith("mouse")
+
+    def press_binding(self, binding):
+        binding_str = str(binding).strip()
+        if not binding_str:
+            return
+        lower = binding_str.lower()
+        if lower.startswith("mouse"):
+            button_key = lower.replace("mouse", "")
+            button_map = {
+                "1": "left",
+                "2": "right",
+                "3": "middle",
+                "4": "x1",
+                "5": "x2"
+            }
+            button = button_map.get(button_key, "left")
+            mouse.click(button)
+            time.sleep(RELEASE_DELAY)
+            return
+        kb.press(binding_str)
         time.sleep(INPUT_DELAY)
-        kb.release('k')
+        kb.release(binding_str)
         time.sleep(RELEASE_DELAY)
+
+    def press_a(self):
+        self.press_binding(self.get_binding("A"))
 
     def press_b(self):
-        kb.press('l')
-        time.sleep(INPUT_DELAY)
-        kb.release('l')
-        time.sleep(RELEASE_DELAY)
+        self.press_binding(self.get_binding("B"))
 
     def press_left(self):
-        kb.press('a')
-        time.sleep(INPUT_DELAY)
-        kb.release('a')
-        time.sleep(RELEASE_DELAY)
+        self.press_binding(self.get_binding("Left"))
 
     def press_right(self):
-        kb.press('d')
-        time.sleep(INPUT_DELAY)
-        kb.release('d')
-        time.sleep(RELEASE_DELAY)
+        self.press_binding(self.get_binding("Right"))
 
     def press_up(self):
-        kb.press('w')
-        time.sleep(INPUT_DELAY)
-        kb.release('w')
-        time.sleep(RELEASE_DELAY)
+        self.press_binding(self.get_binding("Up"))
 
     def press_down(self):
-        kb.press('s')
-        time.sleep(INPUT_DELAY)
-        kb.release('s')
-        time.sleep(RELEASE_DELAY)
+        self.press_binding(self.get_binding("Down"))
 
     def press_plus(self):
-        kb.press('e')
-        time.sleep(INPUT_DELAY)
-        kb.release('e')
-        time.sleep(RELEASE_DELAY)
+        self.press_binding(self.get_binding("Plus"))
+
+    def press_minus(self):
+        self.press_binding(self.get_binding("Minus"))
 
 
     def startGame(self):
-        kb.press('q')
-        time.sleep(INPUT_DELAY)
-        kb.press('k')
-        time.sleep(INPUT_DELAY)
-        kb.release('k')
-        time.sleep(RELEASE_DELAY)
-        kb.release('q')
+        minus_binding = self.get_binding("Minus")
+        if self.is_mouse_binding(minus_binding):
+            self.press_binding(minus_binding)
+            time.sleep(INPUT_DELAY)
+            self.press_a()
+            return
+        if minus_binding:
+            kb.press(str(minus_binding))
+            time.sleep(INPUT_DELAY)
+        self.press_a()
+        if minus_binding:
+            kb.release(str(minus_binding))
         time.sleep(RELEASE_DELAY)
 
     def execute(self, instructions):
@@ -531,6 +561,7 @@ class mssApp:
         self.toBat = []
         self.toField = []
         self.validTeam = False
+        self.binding_vars = {}
 
         self.entries = [None]*9
         self.battings = [None]*9
@@ -730,6 +761,20 @@ class mssApp:
         buttonDefaultsSave.bind('<ButtonPress-1>',
                                lambda event: self.updateDefaultCaptains(varAwayDefault.get(), varHomeDefault.get(), captainNameValues))
 
+        lpaneControls = tk.LabelFrame(tabOptions, text='Controls')
+        lpaneControls.grid(row=2, column=0, pady=10, sticky='w')
+        tk.Label(lpaneControls, text='Use keyboard keys or mouse1/mouse2/mouse3.').grid(row=0, column=0, columnspan=2, sticky='w')
+        control_actions = ["Up", "Down", "Left", "Right", "A", "B", "Plus", "Minus"]
+        for idx, action in enumerate(control_actions, start=1):
+            tk.Label(lpaneControls, text=f'{action}:').grid(row=idx, column=0, sticky='w')
+            varBinding = tk.StringVar()
+            varBinding.set(options.get("KeyBindings", {}).get(action, default_key_bindings.get(action, "")))
+            entryBinding = tk.Entry(lpaneControls, textvariable=varBinding, width=10)
+            entryBinding.grid(row=idx, column=1, padx=5, pady=2, sticky='w')
+            self.binding_vars[action] = varBinding
+        buttonSaveBindings = tk.Button(lpaneControls, text='Save Controls', command=self.updateKeyBindings)
+        buttonSaveBindings.grid(row=len(control_actions) + 1, column=1, sticky='e', pady=(6, 0))
+
 
         nb.add(tabMain, text="Main")
         nb.add(tabTeams, text="Team Manager")
@@ -859,6 +904,17 @@ class mssApp:
         try:
             with open('options.json', 'w') as outfile:
                 json.dump(options, outfile, indent=4)
+        except Exception as e:
+            showerror('Error', f'Failed to write options.json: {e}')
+
+    def updateKeyBindings(self):
+        options.setdefault("KeyBindings", {})
+        for action, var in self.binding_vars.items():
+            options["KeyBindings"][action] = var.get().strip()
+        try:
+            with open('options.json', 'w') as outfile:
+                json.dump(options, outfile, indent=4)
+            showinfo('Saved', 'Control bindings saved!')
         except Exception as e:
             showerror('Error', f'Failed to write options.json: {e}')
 
