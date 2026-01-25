@@ -612,32 +612,16 @@ class mssApp:
             command=lambda: self.updateAutoStart(varAutoStart.get())
         )
         checkboxAutoStart.grid(row=4, column=0, sticky="w")
-        warning_text = (
-            "Before using, make sure you have the following Gecko code enabled:\n"
-            "040802b4 60000000\n"
-            "040802b8 60000000\n"
-            "0406aed8 48000b80\n"
-            "And set these to the controls:\n"
-            "WSAD = Up/Down/Left/Right\n"
-            "K = A button\n"
-            "L = B button\n"
-            "Q = - button\n"
-            "E = + button\n"
-            "Hit the Run button while the game is open and you are\n"
-            "at the main menu, hovering \"Exhibition Mode\"\n"
-            "Programmed by STG, with help from Whodeyy & Kircher\n"
-            "and the rest of the MSS community"
-        )
-        textWarning = tk.Text(tabMain, height=10, width=55, wrap="word")
-        textWarning.insert("1.0", warning_text)
-        textWarning.configure(state="disabled")
-        textWarning.grid(row=1, column=1, rowspan=4, sticky="nw")
-        buttonCopyWarning = tk.Button(
+        labelWarning = tk.Label(tabMain, text="Before using, make sure you have the following Gecko code enabled: \n040802b4 60000000\n040802b8 60000000\n0406aed8 48000b80\n"+
+                                              "And set these to the controls:\nWSAD = Up/Down/Left/Right\nK = A button\nL = B button\nQ = - button\nE = + button\n"+
+                                              "Hit the Run button while the game is open and you are \nat the main menu, hovering \"Exhibition Mode\"\nProgrammed by STG, with help from Whodeyy & Kircher \nand the rest of the MSS community")
+        labelWarning.grid(row=1,column=1, rowspan=4)
+        buttonCopyCodes = tk.Button(
             tabMain,
-            text="Copy Dolphin instructions",
-            command=lambda: self.copyWarningText(warning_text)
+            text="Copy Gecko codes",
+            command=self.copyGeckoCodes
         )
-        buttonCopyWarning.grid(row=5, column=1, sticky="w")
+        buttonCopyCodes.grid(row=5, column=1, sticky="w")
 
         tabTeams = tk.Frame(nb, height=1400, width=700)
         tabTeams.pack(padx=30, pady=30)
@@ -878,12 +862,13 @@ class mssApp:
         except Exception as e:
             showerror('Error', f'Failed to write options.json: {e}')
 
-    def copyWarningText(self, warning_text):
+    def copyGeckoCodes(self):
+        codes_text = "040802b4 60000000\n040802b8 60000000\n0406aed8 48000b80"
         try:
             self.master.clipboard_clear()
-            self.master.clipboard_append(warning_text)
+            self.master.clipboard_append(codes_text)
             self.master.update()
-            showinfo("Copied", "Dolphin instructions copied to clipboard.")
+            showinfo("Copied", "Gecko codes copied to clipboard.")
         except Exception as e:
             showerror("Error", f"Failed to copy to clipboard: {e}")
 
