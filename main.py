@@ -572,6 +572,8 @@ class mssApp:
         self.toField = []
         self.validTeam = False
         self.binding_vars = {}
+        self.capture_action = None
+        self.mouse_hook = None
 
         self.entries = [None]*9
         self.battings = [None]*9
@@ -773,17 +775,21 @@ class mssApp:
 
         lpaneControls = tk.LabelFrame(tabOptions, text='Controls')
         lpaneControls.grid(row=2, column=0, pady=10, sticky='w')
-        tk.Label(lpaneControls, text='Use keyboard keys or mouse1/mouse2/mouse3.').grid(row=0, column=0, columnspan=2, sticky='w')
+        tk.Label(lpaneControls, text='Click Set and press a key or mouse1/mouse2/mouse3.').grid(row=0, column=0, columnspan=3, sticky='w')
         control_actions = ["Up", "Down", "Left", "Right", "A", "B", "Plus", "Minus"]
         for idx, action in enumerate(control_actions, start=1):
             tk.Label(lpaneControls, text=f'{action}:').grid(row=idx, column=0, sticky='w')
             varBinding = tk.StringVar()
             varBinding.set(options.get("KeyBindings", {}).get(action, default_key_bindings.get(action, "")))
-            entryBinding = tk.Entry(lpaneControls, textvariable=varBinding, width=10)
+            entryBinding = tk.Entry(lpaneControls, textvariable=varBinding, width=10, state='readonly')
             entryBinding.grid(row=idx, column=1, padx=5, pady=2, sticky='w')
+            buttonSetBinding = tk.Button(lpaneControls, text='Set', command=lambda a=action: self.startBindingCapture(a))
+            buttonSetBinding.grid(row=idx, column=2, padx=5, pady=2, sticky='w')
             self.binding_vars[action] = varBinding
         buttonSaveBindings = tk.Button(lpaneControls, text='Save Controls', command=self.updateKeyBindings)
         buttonSaveBindings.grid(row=len(control_actions) + 1, column=1, sticky='e', pady=(6, 0))
+        self.labelCaptureStatus = tk.Label(lpaneControls, text='')
+        self.labelCaptureStatus.grid(row=len(control_actions) + 1, column=0, columnspan=3, sticky='w', pady=(6, 0))
 
 
         nb.add(tabMain, text="Main")
@@ -927,6 +933,43 @@ class mssApp:
             showinfo('Saved', 'Control bindings saved!')
         except Exception as e:
             showerror('Error', f'Failed to write options.json: {e}')
+
+    def startBindingCapture(self, action):
+        self.capture_action = action
+        self.labelCaptureStatus.config(text=f'Press a key or mouse button for {action}...')
+        self.master.focus_set()
+        self.master.bind("<Key>", self.handleKeyCapture)
+        if mouse is not None:
+            if self.mouse_hook is not None:
+                mouse.unhook(self.mouse_hook)
+            self.mouse_hook = mouse.on_click(self.handleMouseCapture)
+
+    def finishBindingCapture(self, binding):
+        if not self.capture_action:
+            return
+        self.binding_vars[self.capture_action].set(binding)
+        self.capture_action = None
+        self.labelCaptureStatus.config(text='Binding captured.')
+        self.master.unbind("<Key>")
+        if mouse is not None and self.mouse_hook is not None:
+            mouse.unhook(self.mouse_hook)
+            self.mouse_hook = None
+
+    def handleKeyCapture(self, event):
+        binding = event.keysym.lower()
+        self.finishBindingCapture(binding)
+
+    def handleMouseCapture(self, event):
+        button_map = {
+            "left": "mouse1",
+            "right": "mouse2",
+            "middle": "mouse3",
+            "x1": "mouse4",
+            "x2": "mouse5"
+        }
+        binding = button_map.get(event.button)
+        if binding:
+            self.finishBindingCapture(binding)
 
     def copyGeckoCodes(self):
         codes_text = "040802b4 60000000\n040802b8 60000000\n0406aed8 48000b80"

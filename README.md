@@ -7,4 +7,4 @@ By default, the automation stops after entering the teams and rules (before the 
 
 The main window lists the Dolphin Gecko codes, and the "Copy Gecko codes" button copies them to your clipboard for easy pasting into Dolphin.
 
-You can customize the control bindings in the Options tab (supports keyboard keys and mouse buttons like mouse1/mouse2/mouse3). Mouse bindings require the optional `mouse` package (run `pip install -r requirements.txt`), and these bindings drive all automated inputs, including start-game behavior.
+You can customize the control bindings in the Options tab by clicking Set and pressing a key or mouse button (supports mouse1/mouse2/mouse3). Mouse bindings require the optional `mouse` package (run `pip install -r requirements.txt`), and these bindings drive all automated inputs, including start-game behavior.
