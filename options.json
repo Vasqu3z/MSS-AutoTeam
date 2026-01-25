@@ -1,1 +1,4 @@
-{"MiiDBPath": ""}
+{
+    "MiiDBPath": "",
+    "AutoStartGame": false
+}
