@@ -145,16 +145,30 @@ class Formationizer:
     def sel_code_rev(self):
         t1miis = []
         t2miis = []
+        t1stars = []
+        t2stars = []
         for i in range(9):
-            if self.team1[i][0] > 76:
-                t1miis.append([self.team1[i][0] - 77,self.team1[i][1]])
-            if self.team2[i][0] > 76:
-                t2miis.append([self.team2[i][0] - 77,self.team2[i][1]])
+            team1_player = self.team1[i]
+            team2_player = self.team2[i]
+            t1_starred = len(team1_player) > 3 and bool(team1_player[3])
+            t2_starred = len(team2_player) > 3 and bool(team2_player[3])
+
+            if team1_player[0] > 76:
+                t1miis.append([team1_player[0] - 77, team1_player[1]])
+            elif t1_starred:
+                t1stars.append(team1_player[0])
+
+            if team2_player[0] > 76:
+                t2miis.append([team2_player[0] - 77, team2_player[1]])
+            elif t2_starred:
+                t2stars.append(team2_player[0])
+        self.handleStars(sorted(set(t1stars)), 0, move_after=False)
         self.handleMiis(t1miis, 0)
+        self.handleStars(sorted(set(t2stars)), 1, move_after=False)
         self.handleMiis(t2miis, 1)
 
     
-    def handleMiis(self, arr, dir, total_miis=None):
+    def handleMiis(self, arr, dir, total_miis=None, move_after=True):
         # Prefer explicit total_miis, otherwise try to use a value stored on the class
         if total_miis is None:
             total_miis = getattr(self, "total_miis", None) or getattr(self, "mii_count", None)
@@ -199,10 +213,36 @@ class Formationizer:
                 self.press_b()
                 time.sleep(0.5)
 
-        if dir == 0:
-            self.execute("uuadd")
-        else:
-            self.execute("dauu")
+        if move_after:
+            if dir == 0:
+                self.execute("uuadd")
+            else:
+                self.execute("dauu")
+
+    def handleStars(self, arr, dir, move_after=True):
+        if len(arr) > 0:
+            for idx in arr:
+                self.execute("awllllll")
+                v = idx
+
+                while v >= 10:
+                    v -= 10
+                    self.execute("rrrrralllll")
+
+                for n in range(v % 5):
+                    self.press_right()
+                if v >= 5:
+                    self.press_down()
+
+                self.press_star()
+                self.press_b()
+                time.sleep(0.5)
+
+        if move_after:
+            if dir == 0:
+                self.execute("uuadd")
+            else:
+                self.execute("dauu")
 
     def lineup_code_rev(self, team):
         mlist = []
@@ -465,6 +505,12 @@ class Formationizer:
         kb.release('e')
         time.sleep(RELEASE_DELAY)
 
+    def press_star(self):
+        kb.press('2')
+        time.sleep(INPUT_DELAY)
+        kb.release('2')
+        time.sleep(RELEASE_DELAY)
+
 
     def startGame(self):
         kb.press('q')
@@ -515,8 +561,8 @@ class Formationizer:
         #print(self.rules)
 
 
-myFormationizer = Formationizer([[0, 0, 0], [0, 1, 1], [0, 2, 2], [0, 3, 3], [0, 4, 4], [0, 5, 5], [0, 6, 6], [0, 7, 7], [0, 8, 8]],
-                                           [[1, 0, 0], [1, 1, 1], [1, 2, 2], [1, 3, 3], [1, 4, 4], [1, 5, 5], [1, 6, 6], [1, 7, 7], [1, 8, 8]],
+myFormationizer = Formationizer([[0, 0, 0, 0], [0, 1, 1, 0], [0, 2, 2, 0], [0, 3, 3, 0], [0, 4, 4, 0], [0, 5, 5, 0], [0, 6, 6, 0], [0, 7, 7, 0], [0, 8, 8, 0]],
+                                           [[1, 0, 0, 0], [1, 1, 1, 0], [1, 2, 2, 0], [1, 3, 3, 0], [1, 4, 4, 0], [1, 5, 5, 0], [1, 6, 6, 0], [1, 7, 7, 0], [1, 8, 8, 0]],
                           [0x0, 0], [9, 1, 1, 0])
 myFormationizer.total_miis = len(mii_list)
 print("[INFO] total_miis =", myFormationizer.total_miis)
@@ -535,6 +581,7 @@ class mssApp:
         self.entries = [None]*9
         self.battings = [None]*9
         self.fieldings = [None]*9
+        self.starVars = [tk.BooleanVar(value=False) for _ in range(9)]
 
         nb= ttk.Notebook(self.master)
 
@@ -663,12 +710,14 @@ class mssApp:
                 lpaneCaptain = tk.LabelFrame(lpaneSelect, text="Captain")
                 lpaneCaptain.grid(row=0,column=0, pady = 5)
                 self.entries[i] = ttk.Combobox(lpaneCaptain, values=sorted(charList))
-                self.entries[i].pack()
+                self.entries[i].grid(row=0, column=0, padx=(0, 6))
+                tk.Checkbutton(lpaneCaptain, text="★", variable=self.starVars[i]).grid(row=0, column=1, sticky="w")
                 self.entries[i].bind('<<ComboboxSelected>>',
                                     lambda event: self.updateLists(self.entries, self.battings, self.fieldings))
             else:
                 self.entries[i] = ttk.Combobox(lpaneSelect, values=sorted(charList))
                 self.entries[i].grid(row=i, column=0)
+                tk.Checkbutton(lpaneSelect, text="★", variable=self.starVars[i]).grid(row=i, column=1, sticky="w")
                 self.entries[i].bind('<<ComboboxSelected>>', lambda event: self.updateLists(self.entries,self.battings,self.fieldings))
 
             # Batting dropdowns (unchanged)
@@ -746,15 +795,19 @@ class mssApp:
             en = []
             ba = []
             fl = []
+            st = []
             for i in range(9):
                 #print(ent[i].get())
                 en.append(ent[i].get())
                 ba.append(bat[i].get())
                 fl.append(fld[i].get())
+                st.append(bool(self.starVars[i].get()))
 
             for i in range(9):
                 c = en[i]
-                v = [charList.index(c), ba.index(c), fl.index(c)]
+                char_id = charList.index(c)
+                star_flag = int(st[i]) if char_id <= 76 else 0
+                v = [char_id, ba.index(c), fl.index(c), star_flag]
                 team.append(v)
                 ba[ba.index(c)] = ''
                 fl[fl.index(c)] = ''
@@ -887,12 +940,14 @@ class mssApp:
         self.toField = ['']
         self.validTeam = True
         self.errorMessage = ''
-        for e in en:
+        for i, e in enumerate(en):
             v = e.get()
 
             if v != '':
                 self.toBat.append(e.get())
                 self.toField.append(e.get())
+                if charList.index(v) > 76 and self.starVars[i].get():
+                    self.starVars[i].set(False)
             else:
                 self.validTeam = False
                 if self.errorMessage == '':
@@ -938,6 +993,10 @@ class mssApp:
             en[i].set(c)
             set_entry(ba[tm[i][1]], c)
             set_entry(fl[tm[i][2]], c)
+            star_flag = len(tm[i]) > 3 and bool(tm[i][3])
+            if tm[i][0] > 76:
+                star_flag = False
+            self.starVars[i].set(star_flag)
         self.updateLists(self.entries,self.battings,self.fieldings)
         return
 
@@ -953,6 +1012,8 @@ def getText(team):
     teamS = sorted(team, key=lambda c: c[1])
     for char in teamS:
         ans += charList[char[0]]
+        if len(char) > 3 and bool(char[3]):
+            ans += " ★"
         ans += ' - '
         ans += positions[char[2]]
         ans += '\n'
