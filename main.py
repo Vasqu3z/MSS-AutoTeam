@@ -9,10 +9,14 @@ import dolphin_memory_engine as DMM
 from pathlib import Path
 import pygetwindow as gw
 import json
+import importlib.util
 import keyboard as kb
-import mouse
 import time
 from mii import MiiDatabase, MiiParser, MiiType
+
+mouse = None
+if importlib.util.find_spec("mouse") is not None:
+    import mouse
 
 #Safe delay times that work. Faster times may work but if things start to break, revert to 0.05, 0.05. 
 INPUT_DELAY  = 0.05
@@ -130,6 +134,7 @@ class Formationizer:
         self.team2 = team2
         self.stadium = stadium
         self.rules = rules
+        self.mouse_warning_shown = False
 
     def automate(self):
         print("Starting")
@@ -449,6 +454,11 @@ class Formationizer:
             return
         lower = binding_str.lower()
         if lower.startswith("mouse"):
+            if mouse is None:
+                if not self.mouse_warning_shown:
+                    print("[WARN] Mouse bindings require the 'mouse' package. Install it or use keyboard bindings.")
+                    self.mouse_warning_shown = True
+                return
             button_key = lower.replace("mouse", "")
             button_map = {
                 "1": "left",
