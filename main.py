@@ -32,6 +32,7 @@ with open('options.json') as json_data:
 options = file
 options.setdefault('DefaultAwayCaptainID', 0)
 options.setdefault('DefaultHomeCaptainID', 1)
+options.setdefault('AutoStartGame', False)
 
 def str_to_hex(str):
     hx = 0x0
@@ -138,7 +139,8 @@ class Formationizer:
         time.sleep(0.25)
         self.finalize()
         time.sleep(0.25)
-        self.startGame()
+        if options.get('AutoStartGame', False):
+            self.startGame()
 
     def sel_code_rev(self):
         t1miis = []
@@ -602,10 +604,24 @@ class mssApp:
 
         buttonStart = tk.Button(tabMain, text="Run it!", command=myFormationizer.automate)
         buttonStart.grid(row=3,column=0)
+        varAutoStart = tk.BooleanVar(value=bool(options.get('AutoStartGame', False)))
+        checkboxAutoStart = tk.Checkbutton(
+            tabMain,
+            text="Auto-start game",
+            variable=varAutoStart,
+            command=lambda: self.updateAutoStart(varAutoStart.get())
+        )
+        checkboxAutoStart.grid(row=4, column=0, sticky="w")
         labelWarning = tk.Label(tabMain, text="Before using, make sure you have the following Gecko code enabled: \n040802b4 60000000\n040802b8 60000000\n0406aed8 48000b80\n"+
                                               "And set these to the controls:\nWSAD = Up/Down/Left/Right\nK = A button\nL = B button\nQ = - button\nE = + button\n"+
                                               "Hit the Run button while the game is open and you are \nat the main menu, hovering \"Exhibition Mode\"\nProgrammed by STG, with help from Whodeyy & Kircher \nand the rest of the MSS community")
         labelWarning.grid(row=1,column=1, rowspan=4)
+        buttonCopyCodes = tk.Button(
+            tabMain,
+            text="Copy Gecko codes",
+            command=self.copyGeckoCodes
+        )
+        buttonCopyCodes.grid(row=5, column=1, sticky="w")
 
         tabTeams = tk.Frame(nb, height=1400, width=700)
         tabTeams.pack(padx=30, pady=30)
@@ -837,6 +853,25 @@ class mssApp:
             showinfo('Saved', 'Default captains saved!')
         except Exception as e:
             showerror('Error', f'Failed to write options.json: {e}')
+
+    def updateAutoStart(self, enabled):
+        options['AutoStartGame'] = bool(enabled)
+        try:
+            with open('options.json', 'w') as outfile:
+                json.dump(options, outfile, indent=4)
+        except Exception as e:
+            showerror('Error', f'Failed to write options.json: {e}')
+
+    def copyGeckoCodes(self):
+        codes_text = "040802b4 60000000\n040802b8 60000000\n0406aed8 48000b80"
+        try:
+            self.master.clipboard_clear()
+            self.master.clipboard_append(codes_text)
+            self.master.update()
+            showinfo("Copied", "Gecko codes copied to clipboard.")
+        except Exception as e:
+            showerror("Error", f"Failed to copy to clipboard: {e}")
+
     def updateTeams(self, ca, ch, ct):
         ca.configure(values=team_names)
         ch.configure(values=team_names)
