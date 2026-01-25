@@ -13,19 +13,15 @@ import keyboard as kb
 import time
 from mii import MiiDatabase, MiiParser, MiiType
 
-#Safe delay times that work. Faster times may work but if things start to break, revert to 0.05, 0.05. 
+# Import CLB loader module
+from clb_loader import load_clb_saves, save_clb_lineup, delete_clb_lineup, SAVES_DIR
+
+#Safe delay times that work. Faster times may work but if things start to break, revert to 0.05, 0.05.
 INPUT_DELAY  = 0.05
 RELEASE_DELAY = 0.05
 
 
-
-with open('teams.json') as json_data:
-    file = json.load(json_data)
-    json_data.close()
-teams = file["teams"]
-team_names = file["team_names"]
-print(team_names)
-
+# Load options first (needed for Mii DB path)
 with open('options.json') as json_data:
     file = json.load(json_data)
     json_data.close()
@@ -47,6 +43,7 @@ def str_to_hex(str):
     return hx
 
 
+# Load Mii list BEFORE teams (needed for CLB conversion)
 mii_list = []
 try:
     db = MiiDatabase(Path(options["MiiDBPath"]), MiiType.WII_PLAZA)
@@ -58,6 +55,13 @@ try:
             print(mii.name)
 except:
     print("File error")
+
+# Ensure saves directory exists
+SAVES_DIR.mkdir(exist_ok=True)
+
+# Load teams from saves/ directory (CLB format)
+teams, team_names = load_clb_saves(SAVES_DIR, mii_list)
+print(team_names)
 
 charList = ["Mario", "Luigi", "Donkey Kong", "Diddy Kong", "Peach", "Daisy",
             "Green Yoshi", "Baby Mario", "Baby Luigi", "Bowser", "Wario",
@@ -764,10 +768,15 @@ class mssApp:
                 if ans:
                     tid = team_names.index(name)
                     teams[tid] = team
+                    # Save to CLB format file
+                    if save_clb_lineup(SAVES_DIR, name, team, charList):
+                        showinfo("Team updated", f"Team \"{name}\" has been updated")
             else:
                 team_names.append(name)
                 teams.append(team)
-                showinfo("Team added successfully", "Team \"" + name + "\" added to register")
+                # Save to CLB format file
+                if save_clb_lineup(SAVES_DIR, name, team, charList):
+                    showinfo("Team added successfully", "Team \"" + name + "\" added to register")
 
 
         print(team_names)
@@ -781,6 +790,8 @@ class mssApp:
             teams.pop(tid)
             team_names.pop(tid)
             sel.configure(values=team_names)
+            # Delete the CLB format file
+            delete_clb_lineup(SAVES_DIR, team)
 
         print(team_names)
         print(teams)
@@ -876,11 +887,8 @@ class mssApp:
         ca.configure(values=team_names)
         ch.configure(values=team_names)
         ct.configure(values=team_names)
-        with open("teams.json", mode="w", encoding="utf-8") as write_file:
-            json.dump({
-                "teams": teams,
-                "team_names": team_names
-            }, write_file)
+        # Teams are now saved as individual CLB JSON files in saves/
+        # No need to write teams.json anymore
 
     def updateLists(self,en,ba,fl):
         self.toBat = ['']
