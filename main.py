@@ -9,14 +9,9 @@ import dolphin_memory_engine as DMM
 from pathlib import Path
 import pygetwindow as gw
 import json
-import importlib.util
 import keyboard as kb
 import time
 from mii import MiiDatabase, MiiParser, MiiType
-
-mouse = None
-if importlib.util.find_spec("mouse") is not None:
-    import mouse
 
 #Safe delay times that work. Faster times may work but if things start to break, revert to 0.05, 0.05. 
 INPUT_DELAY  = 0.05
@@ -38,19 +33,6 @@ options = file
 options.setdefault('DefaultAwayCaptainID', 0)
 options.setdefault('DefaultHomeCaptainID', 1)
 options.setdefault('AutoStartGame', False)
-options.setdefault('KeyBindings', {})
-default_key_bindings = {
-    "Up": "w",
-    "Down": "s",
-    "Left": "a",
-    "Right": "d",
-    "A": "k",
-    "B": "l",
-    "Plus": "e",
-    "Minus": "q"
-}
-for action, key in default_key_bindings.items():
-    options['KeyBindings'].setdefault(action, key)
 
 def str_to_hex(str):
     hx = 0x0
@@ -134,7 +116,6 @@ class Formationizer:
         self.team2 = team2
         self.stadium = stadium
         self.rules = rules
-        self.mouse_warning_shown = False
 
     def automate(self):
         print("Starting")
@@ -442,78 +423,57 @@ class Formationizer:
                     return [r, c]
         return -1
 
-    def get_binding(self, action):
-        return options.get("KeyBindings", {}).get(action, default_key_bindings.get(action, ""))
-
-    def is_mouse_binding(self, binding):
-        return str(binding).strip().lower().startswith("mouse")
-
-    def press_binding(self, binding):
-        binding_str = str(binding).strip()
-        if not binding_str:
-            return
-        lower = binding_str.lower()
-        if lower.startswith("mouse"):
-            if mouse is None:
-                if not self.mouse_warning_shown:
-                    print("[WARN] Mouse bindings require the 'mouse' package. Install it or use keyboard bindings.")
-                    self.mouse_warning_shown = True
-                return
-            button_key = lower.replace("mouse", "")
-            button_map = {
-                "1": "left",
-                "2": "right",
-                "3": "middle",
-                "4": "x1",
-                "5": "x2"
-            }
-            button = button_map.get(button_key, "left")
-            mouse.click(button)
-            time.sleep(RELEASE_DELAY)
-            return
-        kb.press(binding_str)
+    def press_a(self):
+        kb.press('k')
         time.sleep(INPUT_DELAY)
-        kb.release(binding_str)
+        kb.release('k')
         time.sleep(RELEASE_DELAY)
 
-    def press_a(self):
-        self.press_binding(self.get_binding("A"))
-
     def press_b(self):
-        self.press_binding(self.get_binding("B"))
+        kb.press('l')
+        time.sleep(INPUT_DELAY)
+        kb.release('l')
+        time.sleep(RELEASE_DELAY)
 
     def press_left(self):
-        self.press_binding(self.get_binding("Left"))
+        kb.press('a')
+        time.sleep(INPUT_DELAY)
+        kb.release('a')
+        time.sleep(RELEASE_DELAY)
 
     def press_right(self):
-        self.press_binding(self.get_binding("Right"))
+        kb.press('d')
+        time.sleep(INPUT_DELAY)
+        kb.release('d')
+        time.sleep(RELEASE_DELAY)
 
     def press_up(self):
-        self.press_binding(self.get_binding("Up"))
+        kb.press('w')
+        time.sleep(INPUT_DELAY)
+        kb.release('w')
+        time.sleep(RELEASE_DELAY)
 
     def press_down(self):
-        self.press_binding(self.get_binding("Down"))
+        kb.press('s')
+        time.sleep(INPUT_DELAY)
+        kb.release('s')
+        time.sleep(RELEASE_DELAY)
 
     def press_plus(self):
-        self.press_binding(self.get_binding("Plus"))
-
-    def press_minus(self):
-        self.press_binding(self.get_binding("Minus"))
+        kb.press('e')
+        time.sleep(INPUT_DELAY)
+        kb.release('e')
+        time.sleep(RELEASE_DELAY)
 
 
     def startGame(self):
-        minus_binding = self.get_binding("Minus")
-        if self.is_mouse_binding(minus_binding):
-            self.press_binding(minus_binding)
-            time.sleep(INPUT_DELAY)
-            self.press_a()
-            return
-        if minus_binding:
-            kb.press(str(minus_binding))
-            time.sleep(INPUT_DELAY)
-        self.press_a()
-        if minus_binding:
-            kb.release(str(minus_binding))
+        kb.press('q')
+        time.sleep(INPUT_DELAY)
+        kb.press('k')
+        time.sleep(INPUT_DELAY)
+        kb.release('k')
+        time.sleep(RELEASE_DELAY)
+        kb.release('q')
         time.sleep(RELEASE_DELAY)
 
     def execute(self, instructions):
@@ -571,9 +531,6 @@ class mssApp:
         self.toBat = []
         self.toField = []
         self.validTeam = False
-        self.binding_vars = {}
-        self.capture_action = None
-        self.mouse_hook = None
 
         self.entries = [None]*9
         self.battings = [None]*9
@@ -773,24 +730,6 @@ class mssApp:
         buttonDefaultsSave.bind('<ButtonPress-1>',
                                lambda event: self.updateDefaultCaptains(varAwayDefault.get(), varHomeDefault.get(), captainNameValues))
 
-        lpaneControls = tk.LabelFrame(tabOptions, text='Controls')
-        lpaneControls.grid(row=2, column=0, pady=10, sticky='w')
-        tk.Label(lpaneControls, text='Click Set and press a key or mouse1/mouse2/mouse3.').grid(row=0, column=0, columnspan=3, sticky='w')
-        control_actions = ["Up", "Down", "Left", "Right", "A", "B", "Plus", "Minus"]
-        for idx, action in enumerate(control_actions, start=1):
-            tk.Label(lpaneControls, text=f'{action}:').grid(row=idx, column=0, sticky='w')
-            varBinding = tk.StringVar()
-            varBinding.set(options.get("KeyBindings", {}).get(action, default_key_bindings.get(action, "")))
-            entryBinding = tk.Entry(lpaneControls, textvariable=varBinding, width=10, state='readonly')
-            entryBinding.grid(row=idx, column=1, padx=5, pady=2, sticky='w')
-            buttonSetBinding = tk.Button(lpaneControls, text='Set', command=lambda a=action: self.startBindingCapture(a))
-            buttonSetBinding.grid(row=idx, column=2, padx=5, pady=2, sticky='w')
-            self.binding_vars[action] = varBinding
-        buttonSaveBindings = tk.Button(lpaneControls, text='Save Controls', command=self.updateKeyBindings)
-        buttonSaveBindings.grid(row=len(control_actions) + 1, column=1, sticky='e', pady=(6, 0))
-        self.labelCaptureStatus = tk.Label(lpaneControls, text='')
-        self.labelCaptureStatus.grid(row=len(control_actions) + 1, column=0, columnspan=3, sticky='w', pady=(6, 0))
-
 
         nb.add(tabMain, text="Main")
         nb.add(tabTeams, text="Team Manager")
@@ -922,54 +861,6 @@ class mssApp:
                 json.dump(options, outfile, indent=4)
         except Exception as e:
             showerror('Error', f'Failed to write options.json: {e}')
-
-    def updateKeyBindings(self):
-        options.setdefault("KeyBindings", {})
-        for action, var in self.binding_vars.items():
-            options["KeyBindings"][action] = var.get().strip()
-        try:
-            with open('options.json', 'w') as outfile:
-                json.dump(options, outfile, indent=4)
-            showinfo('Saved', 'Control bindings saved!')
-        except Exception as e:
-            showerror('Error', f'Failed to write options.json: {e}')
-
-    def startBindingCapture(self, action):
-        self.capture_action = action
-        self.labelCaptureStatus.config(text=f'Press a key or mouse button for {action}...')
-        self.master.focus_set()
-        self.master.bind("<Key>", self.handleKeyCapture)
-        if mouse is not None:
-            if self.mouse_hook is not None:
-                mouse.unhook(self.mouse_hook)
-            self.mouse_hook = mouse.on_click(self.handleMouseCapture)
-
-    def finishBindingCapture(self, binding):
-        if not self.capture_action:
-            return
-        self.binding_vars[self.capture_action].set(binding)
-        self.capture_action = None
-        self.labelCaptureStatus.config(text='Binding captured.')
-        self.master.unbind("<Key>")
-        if mouse is not None and self.mouse_hook is not None:
-            mouse.unhook(self.mouse_hook)
-            self.mouse_hook = None
-
-    def handleKeyCapture(self, event):
-        binding = event.keysym.lower()
-        self.finishBindingCapture(binding)
-
-    def handleMouseCapture(self, event):
-        button_map = {
-            "left": "mouse1",
-            "right": "mouse2",
-            "middle": "mouse3",
-            "x1": "mouse4",
-            "x2": "mouse5"
-        }
-        binding = button_map.get(event.button)
-        if binding:
-            self.finishBindingCapture(binding)
 
     def copyGeckoCodes(self):
         codes_text = "040802b4 60000000\n040802b8 60000000\n0406aed8 48000b80"

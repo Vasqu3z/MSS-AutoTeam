@@ -6,5 +6,3 @@ This application allows users to add Mario Super Sluggers teams to the register,
 By default, the automation stops after entering the teams and rules (before the game starts). Enable the "Auto-start game" checkbox near the Run it! button to have it press start automatically once team entry is complete. The default for this toggle is off to avoid starting the game until you confirm everything looks right.
 
 The main window lists the Dolphin Gecko codes, and the "Copy Gecko codes" button copies them to your clipboard for easy pasting into Dolphin.
-
-You can customize the control bindings in the Options tab by clicking Set and pressing a key or mouse button (supports mouse1/mouse2/mouse3). Mouse bindings require the optional `mouse` package (run `pip install -r requirements.txt`), and these bindings drive all automated inputs, including start-game behavior.

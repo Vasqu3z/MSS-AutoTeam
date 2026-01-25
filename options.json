@@ -1,14 +1,4 @@
 {
     "MiiDBPath": "",
-    "AutoStartGame": false,
-    "KeyBindings": {
-        "Up": "w",
-        "Down": "s",
-        "Left": "a",
-        "Right": "d",
-        "A": "k",
-        "B": "l",
-        "Plus": "e",
-        "Minus": "q"
-    }
+    "AutoStartGame": false
 }
