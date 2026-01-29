@@ -18,7 +18,7 @@ from typing import Any, Optional
 
 # Default options structure
 DEFAULT_OPTIONS = {
-    "version": 2,
+    "version": 1,
     "mii": {
         "databasePath": ""
     },
@@ -30,19 +30,6 @@ DEFAULT_OPTIONS = {
         "autoStartGame": False,
         "inputDelay": 0.05,
         "releaseDelay": 0.05
-    },
-    "controls": {
-        "up": "w",
-        "down": "s",
-        "left": "a",
-        "right": "d",
-        "a_button": "k",
-        "b_button": "l",
-        "minus_button": "q",
-        "plus_button": "e",
-        "useMouse": False,
-        "mouse_a_button": "",
-        "mouse_b_button": ""
     },
     "ui": {
         "lastAwayTeam": "",
@@ -107,7 +94,7 @@ class OptionsManager:
         # Preserve any new-format keys that might already exist
         if "version" in legacy:
             # Already migrated or partially migrated
-            for section in ["mii", "defaults", "automation", "controls", "ui"]:
+            for section in ["mii", "defaults", "automation", "ui"]:
                 if section in legacy and isinstance(legacy[section], dict):
                     options[section].update(legacy[section])
 
@@ -286,98 +273,6 @@ class OptionsManager:
     def release_delay(self, value: float) -> None:
         """Set the release delay in seconds."""
         self._options["automation"]["releaseDelay"] = max(0.01, float(value))
-
-    # -------------------------------------------------------------------------
-    # Controls Settings
-    # -------------------------------------------------------------------------
-
-    # List of valid control names
-    CONTROL_NAMES = ["up", "down", "left", "right", "a_button", "b_button", "minus_button", "plus_button"]
-    MOUSE_CONTROL_NAMES = ["mouse_a_button", "mouse_b_button"]
-
-    def get_control(self, control_name: str) -> str:
-        """
-        Get the key binding for a control.
-
-        Args:
-            control_name: The control name (e.g., "up", "a_button")
-
-        Returns:
-            The key binding string
-        """
-        return self._options["controls"].get(control_name, "")
-
-    def set_control(self, control_name: str, key: str) -> None:
-        """
-        Set the key binding for a control.
-
-        Args:
-            control_name: The control name (e.g., "up", "a_button")
-            key: The key binding string
-        """
-        if control_name in self.CONTROL_NAMES:
-            self._options["controls"][control_name] = str(key)
-
-    def get_control_mouse(self, control_name: str) -> str:
-        """
-        Get the mouse button binding for a control.
-
-        Args:
-            control_name: The control name (e.g., "a_button")
-
-        Returns:
-            The mouse button name ("left", "right", "middle") or empty string
-        """
-        mouse_key = f"mouse_{control_name}"
-        return self._options["controls"].get(mouse_key, "")
-
-    def set_control_mouse(self, control_name: str, button: str) -> None:
-        """
-        Set the mouse button binding for a control.
-
-        Args:
-            control_name: The control name (e.g., "a_button")
-            button: The mouse button name ("left", "right", "middle", or "")
-        """
-        mouse_key = f"mouse_{control_name}"
-        if button in ("", "left", "right", "middle"):
-            self._options["controls"][mouse_key] = button
-
-    @property
-    def controls_use_mouse(self) -> bool:
-        """Get whether mouse input is enabled."""
-        return bool(self._options["controls"].get("useMouse", False))
-
-    @controls_use_mouse.setter
-    def controls_use_mouse(self, value: bool) -> None:
-        """Set whether mouse input is enabled."""
-        self._options["controls"]["useMouse"] = bool(value)
-
-    def get_all_controls(self) -> dict:
-        """
-        Get all control bindings.
-
-        Returns:
-            Dictionary of control name to key binding
-        """
-        return {name: self.get_control(name) for name in self.CONTROL_NAMES}
-
-    def reset_controls_to_defaults(self) -> None:
-        """Reset all controls to their default values."""
-        defaults = {
-            "up": "w",
-            "down": "s",
-            "left": "a",
-            "right": "d",
-            "a_button": "k",
-            "b_button": "l",
-            "minus_button": "q",
-            "plus_button": "e",
-            "useMouse": False,
-            "mouse_a_button": "",
-            "mouse_b_button": ""
-        }
-        self._options["controls"] = defaults
 
     # -------------------------------------------------------------------------
     # UI State Persistence

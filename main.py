@@ -9,23 +9,20 @@ import dolphin_memory_engine as DMM
 from pathlib import Path
 import pygetwindow as gw
 import json
+import keyboard as kb
 import time
 from mii import MiiDatabase, MiiParser, MiiType
 
 # Import CLB loader module
 from clb_loader import load_clb_saves, save_clb_lineup, delete_clb_lineup, SAVES_DIR
 
-# Import the new OptionsManager and InputManager
+# Import the new OptionsManager
 from options_manager import get_options_manager
-from input_manager import InputManager, KeyCaptureDialog, get_display_name, get_mouse_display_name
 
 # Initialize options manager (handles loading, migration, and defaults)
 options = get_options_manager()
 
-# Initialize input manager with configurable controls
-input_manager = InputManager(options)
-
-# Get delay times from options (for reference, InputManager uses these internally)
+# Get delay times from options (configurable, with sensible defaults)
 INPUT_DELAY = options.input_delay
 RELEASE_DELAY = options.release_delay
 
@@ -116,12 +113,11 @@ stadiums = ["Mario Stadium",
 
 
 class Formationizer:
-    def __init__(self, team1, team2, stadium, rules, input_mgr=None):
+    def __init__(self, team1, team2, stadium, rules):
         self.team1 = team1
         self.team2 = team2
         self.stadium = stadium
         self.rules = rules
-        self.input_mgr = input_mgr or input_manager
 
     def automate(self):
         print("Starting")
@@ -430,31 +426,74 @@ class Formationizer:
         return -1
 
     def press_a(self):
-        self.input_mgr.press_a()
+        kb.press('k')
+        time.sleep(INPUT_DELAY)
+        kb.release('k')
+        time.sleep(RELEASE_DELAY)
 
     def press_b(self):
-        self.input_mgr.press_b()
+        kb.press('l')
+        time.sleep(INPUT_DELAY)
+        kb.release('l')
+        time.sleep(RELEASE_DELAY)
 
     def press_left(self):
-        self.input_mgr.press_left()
+        kb.press('a')
+        time.sleep(INPUT_DELAY)
+        kb.release('a')
+        time.sleep(RELEASE_DELAY)
 
     def press_right(self):
-        self.input_mgr.press_right()
+        kb.press('d')
+        time.sleep(INPUT_DELAY)
+        kb.release('d')
+        time.sleep(RELEASE_DELAY)
 
     def press_up(self):
-        self.input_mgr.press_up()
+        kb.press('w')
+        time.sleep(INPUT_DELAY)
+        kb.release('w')
+        time.sleep(RELEASE_DELAY)
 
     def press_down(self):
-        self.input_mgr.press_down()
+        kb.press('s')
+        time.sleep(INPUT_DELAY)
+        kb.release('s')
+        time.sleep(RELEASE_DELAY)
 
     def press_plus(self):
-        self.input_mgr.press_plus()
+        kb.press('e')
+        time.sleep(INPUT_DELAY)
+        kb.release('e')
+        time.sleep(RELEASE_DELAY)
+
 
     def startGame(self):
-        self.input_mgr.start_game()
+        kb.press('q')
+        time.sleep(INPUT_DELAY)
+        kb.press('k')
+        time.sleep(INPUT_DELAY)
+        kb.release('k')
+        time.sleep(RELEASE_DELAY)
+        kb.release('q')
+        time.sleep(RELEASE_DELAY)
 
     def execute(self, instructions):
-        self.input_mgr.execute(instructions)
+        for i in instructions:
+            if i == "u":
+                self.press_up()
+            elif i == "d":
+                self.press_down()
+            elif i == "l":
+                self.press_left()
+            elif i == "r":
+                self.press_right()
+            elif i == "a":
+                self.press_a()
+            elif i == "w":
+                time.sleep(0.5)
+
+        time.sleep(INPUT_DELAY)   # <-- important
 
 
     def setAway(self, team):
@@ -480,7 +519,7 @@ class Formationizer:
 
 myFormationizer = Formationizer([[0, 0, 0], [0, 1, 1], [0, 2, 2], [0, 3, 3], [0, 4, 4], [0, 5, 5], [0, 6, 6], [0, 7, 7], [0, 8, 8]],
                                            [[1, 0, 0], [1, 1, 1], [1, 2, 2], [1, 3, 3], [1, 4, 4], [1, 5, 5], [1, 6, 6], [1, 7, 7], [1, 8, 8]],
-                          [0x0, 0], [9, 1, 1, 0], input_manager)
+                          [0x0, 0], [9, 1, 1, 0])
 myFormationizer.total_miis = len(mii_list)
 print("[INFO] total_miis =", myFormationizer.total_miis)
 
@@ -620,7 +659,7 @@ class mssApp:
         )
         checkboxAutoStart.grid(row=4, column=0, sticky="w")
         labelWarning = tk.Label(tabMain, text="Before using, make sure you have the following Gecko code enabled: \n040802b4 60000000\n040802b8 60000000\n0406aed8 48000b80\n"+
-                                              "Configure your Dolphin controls to match the Controls\nsettings in the Options tab (default: WSAD + K/L/Q/E)\n"+
+                                              "And set these to the controls:\nWSAD = Up/Down/Left/Right\nK = A button\nL = B button\nQ = - button\nE = + button\n"+
                                               "Hit the Run button while the game is open and you are \nat the main menu, hovering \"Exhibition Mode\"\nProgrammed by STG, with help from Whodeyy & Kircher \nand the rest of the MSS community")
         labelWarning.grid(row=1,column=1, rowspan=4)
         buttonCopyCodes = tk.Button(
@@ -737,73 +776,6 @@ class mssApp:
         buttonDefaultsSave.bind('<ButtonPress-1>',
                                lambda event: self.updateDefaultCaptains(varAwayDefault.get(), varHomeDefault.get(), captainNameValues))
 
-        # Controls configuration section
-        lpaneControls = tk.LabelFrame(tabOptions, text='Controls')
-        lpaneControls.grid(row=2, column=0, pady=10, sticky='w')
-
-        # Store control button references for updating
-        self.control_buttons = {}
-        self.key_capture = KeyCaptureDialog()
-
-        control_labels = {
-            'up': 'Up:',
-            'down': 'Down:',
-            'left': 'Left:',
-            'right': 'Right:',
-            'a_button': 'A Button:',
-            'b_button': 'B Button:',
-            'minus_button': '- Button:',
-            'plus_button': '+ Button:'
-        }
-
-        row_idx = 0
-        for control_name, label_text in control_labels.items():
-            tk.Label(lpaneControls, text=label_text, width=10, anchor='w').grid(row=row_idx, column=0, sticky='w', padx=5, pady=2)
-
-            current_key = options.get_control(control_name)
-            btn = tk.Button(lpaneControls, text=get_display_name(current_key), width=12)
-            btn.grid(row=row_idx, column=1, padx=5, pady=2)
-            btn.bind('<Button-1>', lambda e, cn=control_name, b=btn: self.captureKey(cn, b))
-            self.control_buttons[control_name] = btn
-
-            row_idx += 1
-
-        # Mouse input toggle
-        self.varUseMouse = tk.BooleanVar(value=options.controls_use_mouse)
-        checkUseMouse = tk.Checkbutton(
-            lpaneControls,
-            text='Enable mouse input for A/B',
-            variable=self.varUseMouse,
-            command=self.toggleMouseInput
-        )
-        checkUseMouse.grid(row=row_idx, column=0, columnspan=2, sticky='w', pady=(10, 2))
-        row_idx += 1
-
-        # Mouse button assignments (only for A and B)
-        self.mouse_frame = tk.Frame(lpaneControls)
-        self.mouse_frame.grid(row=row_idx, column=0, columnspan=2, sticky='w', padx=20)
-
-        tk.Label(self.mouse_frame, text='Mouse A:', width=10, anchor='w').grid(row=0, column=0, sticky='w')
-        self.comboMouseA = ttk.Combobox(self.mouse_frame, values=['', 'left', 'right', 'middle'], state='readonly', width=10)
-        self.comboMouseA.set(options.get_control_mouse('a_button') or '')
-        self.comboMouseA.grid(row=0, column=1, padx=5, pady=2)
-        self.comboMouseA.bind('<<ComboboxSelected>>', lambda e: self.updateMouseBinding('a_button', self.comboMouseA.get()))
-
-        tk.Label(self.mouse_frame, text='Mouse B:', width=10, anchor='w').grid(row=1, column=0, sticky='w')
-        self.comboMouseB = ttk.Combobox(self.mouse_frame, values=['', 'left', 'right', 'middle'], state='readonly', width=10)
-        self.comboMouseB.set(options.get_control_mouse('b_button') or '')
-        self.comboMouseB.grid(row=1, column=1, padx=5, pady=2)
-        self.comboMouseB.bind('<<ComboboxSelected>>', lambda e: self.updateMouseBinding('b_button', self.comboMouseB.get()))
-
-        row_idx += 1
-
-        # Update mouse frame visibility based on checkbox
-        if not self.varUseMouse.get():
-            self.mouse_frame.grid_remove()
-
-        # Reset to defaults button
-        buttonResetControls = tk.Button(lpaneControls, text='Reset to Defaults', command=self.resetControlsToDefaults)
-        buttonResetControls.grid(row=row_idx, column=0, columnspan=2, pady=(10, 5))
 
         nb.add(tabMain, text="Main")
         nb.add(tabTeams, text="Team Manager")
@@ -968,57 +940,6 @@ class mssApp:
             showinfo("Copied", "Gecko codes copied to clipboard.")
         except Exception as e:
             showerror("Error", f"Failed to copy to clipboard: {e}")
-
-    def captureKey(self, control_name, button):
-        """Capture a key press and assign it to a control."""
-        original_text = button.cget('text')
-        button.config(text='Press a key...', state='disabled')
-        self.master.update()
-
-        def on_capture(key):
-            if key:
-                options.set_control(control_name, key)
-                options.save()
-                button.config(text=get_display_name(key), state='normal')
-            else:
-                button.config(text=original_text, state='normal')
-
-        # Use after to allow button to update before blocking
-        self.master.after(100, lambda: self.key_capture.capture(callback=on_capture, timeout=5.0))
-
-    def toggleMouseInput(self):
-        """Toggle mouse input mode."""
-        enabled = self.varUseMouse.get()
-        options.controls_use_mouse = enabled
-        options.save()
-
-        if enabled:
-            self.mouse_frame.grid()
-        else:
-            self.mouse_frame.grid_remove()
-
-    def updateMouseBinding(self, control_name, button):
-        """Update a mouse button binding."""
-        options.set_control_mouse(control_name, button)
-        options.save()
-
-    def resetControlsToDefaults(self):
-        """Reset all controls to default values."""
-        options.reset_controls_to_defaults()
-        options.save()
-
-        # Update all control buttons
-        for control_name, btn in self.control_buttons.items():
-            current_key = options.get_control(control_name)
-            btn.config(text=get_display_name(current_key))
-
-        # Update mouse settings
-        self.varUseMouse.set(False)
-        self.mouse_frame.grid_remove()
-        self.comboMouseA.set('')
-        self.comboMouseB.set('')
-
-        showinfo('Reset', 'Controls have been reset to defaults.')
 
     def updateTeams(self, ca, ch, ct):
         ca.configure(values=team_names)
