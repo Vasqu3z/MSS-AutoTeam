@@ -1070,10 +1070,16 @@ class mssApp:
         self.updateRunButtonState()
 
     def updateRunButtonState(self):
-        """Enable/disable the Run button based on team selection."""
+        """Enable/disable the Run button based on team selection and lineup validity."""
         if self.buttonStart:
             if self.awayTeamSelected and self.homeTeamSelected:
-                self.buttonStart.config(state='normal')
+                # Also validate both lineups
+                away_valid, _ = validate_team_lineup(myFormationizer.team1, "Away", charList)
+                home_valid, _ = validate_team_lineup(myFormationizer.team2, "Home", charList)
+                if away_valid and home_valid:
+                    self.buttonStart.config(state='normal')
+                else:
+                    self.buttonStart.config(state='disabled')
             else:
                 self.buttonStart.config(state='disabled')
 
@@ -1082,20 +1088,6 @@ class mssApp:
         away_team_name = self.comboxAway.get() if self.comboxAway else "Unknown"
         home_team_name = self.comboxHome.get() if self.comboxHome else "Unknown"
         stadium = stadiums[myFormationizer.stadium[0]] if myFormationizer.stadium[0] < len(stadiums) else "Unknown"
-
-        # Validate both team lineups before proceeding
-        away_valid, away_error = validate_team_lineup(myFormationizer.team1, f"Away ({away_team_name})", charList)
-        home_valid, home_error = validate_team_lineup(myFormationizer.team2, f"Home ({home_team_name})", charList)
-
-        if not away_valid or not home_valid:
-            error_msg = "Cannot run - invalid lineup detected:\n\n"
-            if not away_valid:
-                error_msg += f"• {away_error}\n"
-            if not home_valid:
-                error_msg += f"• {home_error}\n"
-            error_msg += "\nPlease fix the team lineup and try again."
-            showerror("Invalid Lineup", error_msg)
-            return
 
         message = f"Ready to set up match:\n\n"
         message += f"  Away: {away_team_name}\n"
