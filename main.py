@@ -89,6 +89,26 @@ captains = [0, 1, 2, 3, 4, 5, 6, 9, 10, 11, 17, 19]
 speed_const = 0.03
 
 
+def find_valid_captain(team):
+    """
+    Find a valid captain in the team roster.
+
+    Scans the team for any player whose character ID is in the captains list.
+    Returns the captain's character ID if found, or None if no valid captain exists.
+
+    Args:
+        team: List of [char_id, batting_pos, fielding_pos] for each player
+
+    Returns:
+        The character ID of a valid captain found in the roster, or None
+    """
+    for player in team:
+        char_id = player[0]
+        if char_id in captains:
+            return char_id
+    return None
+
+
 
 '''with open("teams.json", mode="w", encoding="utf-8") as write_file:
     json.dump({
@@ -393,16 +413,36 @@ class Formationizer:
         DMM.write_byte(0x811f769f, self.stadium[1])
         c1 = -1
         c2 = -1
+
+        # First, check if the first batter is already a valid captain
         if self.team1[0][0] in captains:
             c1 = captains.index(self.team1[0][0])
         if self.team2[0][0] in captains:
             c2 = captains.index(self.team2[0][0])
+
+        # If no valid captain in first slot, scan roster for any valid captain
         if c1 == -1:
-            default_away_id = options.default_away_captain_id
-            c1 = captains.index(default_away_id) if default_away_id in captains else 0
+            roster_captain = find_valid_captain(self.team1)
+            if roster_captain is not None:
+                c1 = captains.index(roster_captain)
+                print(f"[Auto-Captain] Away team: Found {charList[roster_captain]} in roster")
+            else:
+                # Fall back to default captain
+                default_away_id = options.default_away_captain_id
+                c1 = captains.index(default_away_id) if default_away_id in captains else 0
+                print(f"[Auto-Captain] Away team: No valid captain in roster, using default")
+
         if c2 == -1:
-            default_home_id = options.default_home_captain_id
-            c2 = captains.index(default_home_id) if default_home_id in captains else (1 if len(captains) > 1 else 0)
+            roster_captain = find_valid_captain(self.team2)
+            if roster_captain is not None:
+                c2 = captains.index(roster_captain)
+                print(f"[Auto-Captain] Home team: Found {charList[roster_captain]} in roster")
+            else:
+                # Fall back to default captain
+                default_home_id = options.default_home_captain_id
+                c2 = captains.index(default_home_id) if default_home_id in captains else (1 if len(captains) > 1 else 0)
+                print(f"[Auto-Captain] Home team: No valid captain in roster, using default")
+
         DMM.write_byte(0x811f76ac, c1)
         DMM.write_byte(0x811f76ad, c2)
 
@@ -538,6 +578,13 @@ class mssApp:
         self.battings = [None]*9
         self.fieldings = [None]*9
 
+        # Track selected teams for UI state
+        self.awayTeamSelected = False
+        self.homeTeamSelected = False
+        self.buttonStart = None  # Will hold reference to Run button
+        self.comboxAway = None   # Will hold reference to Away combobox
+        self.comboxHome = None   # Will hold reference to Home combobox
+
         nb= ttk.Notebook(self.master)
 
         tabMain = tk.Frame(nb, height=1400, width=700)
@@ -547,34 +594,38 @@ class mssApp:
         lpaneTeam.grid(row=0,column=0,padx = 30)
         labelAway = tk.Label(lpaneTeam,text="Away:")
         labelAway.grid(row=0,column=0)
-        comboxAway = ttk.Combobox(lpaneTeam, values=team_names, state="readonly")
-        comboxAway.grid(row=1,column=0)
-        comboxAway.bind('<<ComboboxSelected>>', lambda event: myFormationizer.setAway(teams[team_names.index(comboxAway.get())]))
-        comboxAway.bind('<<ComboboxSelected>>', lambda event: textboxAway.configure(text=getText(myFormationizer.team1)), add='+')
-        comboxAway.bind('<<ComboboxSelected>>', lambda event: self.saveUiState('lastAwayTeam', comboxAway.get()), add='+')
+        self.comboxAway = ttk.Combobox(lpaneTeam, values=team_names, state="readonly")
+        self.comboxAway.grid(row=1,column=0)
+        self.comboxAway.bind('<<ComboboxSelected>>', lambda event: myFormationizer.setAway(teams[team_names.index(self.comboxAway.get())]))
+        self.comboxAway.bind('<<ComboboxSelected>>', lambda event: textboxAway.configure(text=getText(myFormationizer.team1)), add='+')
+        self.comboxAway.bind('<<ComboboxSelected>>', lambda event: self.saveUiState('lastAwayTeam', self.comboxAway.get()), add='+')
+        self.comboxAway.bind('<<ComboboxSelected>>', lambda event: self.onTeamSelected('away'), add='+')
         textboxAway = tk.Label(lpaneTeam, height=10, width=25,text=getText(myFormationizer.team1))
         textboxAway.bind('<Key>', lambda e : "break")
         textboxAway.grid(row=2,column =0)
         labelHome = tk.Label(lpaneTeam, text="Home:")
         labelHome.grid(row=0, column=1)
-        comboxHome = ttk.Combobox(lpaneTeam, values=team_names, state="readonly")
-        comboxHome.grid(row=1, column=1)
-        comboxHome.bind('<<ComboboxSelected>>', lambda event: myFormationizer.setHome(teams[team_names.index(comboxHome.get())]))
-        comboxHome.bind('<<ComboboxSelected>>', lambda event: textboxHome.configure(text=getText(myFormationizer.team2)), add='+')
-        comboxHome.bind('<<ComboboxSelected>>', lambda event: self.saveUiState('lastHomeTeam', comboxHome.get()), add='+')
+        self.comboxHome = ttk.Combobox(lpaneTeam, values=team_names, state="readonly")
+        self.comboxHome.grid(row=1, column=1)
+        self.comboxHome.bind('<<ComboboxSelected>>', lambda event: myFormationizer.setHome(teams[team_names.index(self.comboxHome.get())]))
+        self.comboxHome.bind('<<ComboboxSelected>>', lambda event: textboxHome.configure(text=getText(myFormationizer.team2)), add='+')
+        self.comboxHome.bind('<<ComboboxSelected>>', lambda event: self.saveUiState('lastHomeTeam', self.comboxHome.get()), add='+')
+        self.comboxHome.bind('<<ComboboxSelected>>', lambda event: self.onTeamSelected('home'), add='+')
         textboxHome = tk.Label(lpaneTeam, height=10, width=25, text=getText(myFormationizer.team2))
         textboxHome.bind('<Key>', lambda e: "break")
         textboxHome.grid(row=2, column=1)
 
         # Restore last selected teams
         if options.last_away_team and options.last_away_team in team_names:
-            comboxAway.set(options.last_away_team)
+            self.comboxAway.set(options.last_away_team)
             myFormationizer.setAway(teams[team_names.index(options.last_away_team)])
             textboxAway.configure(text=getText(myFormationizer.team1))
+            self.awayTeamSelected = True
         if options.last_home_team and options.last_home_team in team_names:
-            comboxHome.set(options.last_home_team)
+            self.comboxHome.set(options.last_home_team)
             myFormationizer.setHome(teams[team_names.index(options.last_home_team)])
             textboxHome.configure(text=getText(myFormationizer.team2))
+            self.homeTeamSelected = True
 
         lpaneStadium = tk.LabelFrame(tabMain, text="Stadium")
         lpaneStadium.grid(row=1, column=0)
@@ -648,8 +699,10 @@ class mssApp:
         comboxItems.set(last_items)
         myFormationizer.setRule(3, ["Off", "On"].index(last_items))
 
-        buttonStart = tk.Button(tabMain, text="Run it!", command=myFormationizer.automate)
-        buttonStart.grid(row=3,column=0)
+        # Run button - initially disabled until both teams selected
+        self.buttonStart = tk.Button(tabMain, text="Run it!", command=self.confirmAndRun)
+        self.buttonStart.grid(row=3,column=0)
+        self.updateRunButtonState()  # Set initial state based on restored teams
         varAutoStart = tk.BooleanVar(value=options.auto_start_game)
         checkboxAutoStart = tk.Checkbutton(
             tabMain,
@@ -941,10 +994,47 @@ class mssApp:
         except Exception as e:
             showerror("Error", f"Failed to copy to clipboard: {e}")
 
+    def onTeamSelected(self, team_type):
+        """Called when a team is selected from the dropdown."""
+        if team_type == 'away':
+            self.awayTeamSelected = True
+        elif team_type == 'home':
+            self.homeTeamSelected = True
+        self.updateRunButtonState()
+
+    def updateRunButtonState(self):
+        """Enable/disable the Run button based on team selection."""
+        if self.buttonStart:
+            if self.awayTeamSelected and self.homeTeamSelected:
+                self.buttonStart.config(state='normal')
+            else:
+                self.buttonStart.config(state='disabled')
+
+    def confirmAndRun(self):
+        """Show confirmation dialog before running automation."""
+        away_team = self.comboxAway.get() if self.comboxAway else "Unknown"
+        home_team = self.comboxHome.get() if self.comboxHome else "Unknown"
+        stadium = stadiums[myFormationizer.stadium[0]] if myFormationizer.stadium[0] < len(stadiums) else "Unknown"
+
+        message = f"Ready to set up match:\n\n"
+        message += f"  Away: {away_team}\n"
+        message += f"  Home: {home_team}\n"
+        message += f"  Stadium: {stadium}\n\n"
+        message += "Make sure Dolphin is running and you're at the\nmain menu hovering 'Exhibition Mode'.\n\n"
+        message += "Continue?"
+
+        if askyesno("Confirm Match Setup", message):
+            myFormationizer.automate()
+
     def updateTeams(self, ca, ch, ct):
         ca.configure(values=team_names)
         ch.configure(values=team_names)
         ct.configure(values=team_names)
+        # Also update our stored references
+        if self.comboxAway:
+            self.comboxAway.configure(values=team_names)
+        if self.comboxHome:
+            self.comboxHome.configure(values=team_names)
         # Teams are now saved as individual CLB JSON files in saves/
         # No need to write teams.json anymore
 
