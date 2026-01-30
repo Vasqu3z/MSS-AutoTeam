@@ -109,6 +109,73 @@ def find_valid_captain(team):
     return None
 
 
+def validate_team_lineup(team, team_name, char_list):
+    """
+    Validate a team lineup for completeness and correctness.
+
+    Checks for:
+    - Correct number of players (9)
+    - Valid character IDs (within charList range)
+    - No duplicate batting positions
+    - No duplicate fielding positions
+    - All batting positions 0-8 covered
+    - All fielding positions 0-8 covered
+
+    Args:
+        team: List of [char_id, batting_pos, fielding_pos] for each player
+        team_name: Name of the team (for error messages)
+        char_list: The character list to validate against
+
+    Returns:
+        Tuple of (is_valid: bool, error_message: str or None)
+    """
+    if not team:
+        return False, f"{team_name}: No team data"
+
+    if len(team) != 9:
+        return False, f"{team_name}: Expected 9 players, found {len(team)}"
+
+    batting_positions = set()
+    fielding_positions = set()
+
+    for i, player in enumerate(team):
+        if len(player) != 3:
+            return False, f"{team_name}: Player {i+1} has invalid data format"
+
+        char_id, batting_pos, fielding_pos = player
+
+        # Check character ID is valid
+        if char_id < 0 or char_id >= len(char_list):
+            return False, f"{team_name}: Player {i+1} has invalid character ID ({char_id}). This may happen if a Mii failed to load."
+
+        # Check batting position
+        if batting_pos < 0 or batting_pos > 8:
+            return False, f"{team_name}: Player {i+1} has invalid batting position ({batting_pos})"
+
+        if batting_pos in batting_positions:
+            return False, f"{team_name}: Duplicate batting position {batting_pos}"
+        batting_positions.add(batting_pos)
+
+        # Check fielding position
+        if fielding_pos < 0 or fielding_pos > 8:
+            return False, f"{team_name}: Player {i+1} has invalid fielding position ({fielding_pos})"
+
+        if fielding_pos in fielding_positions:
+            return False, f"{team_name}: Duplicate fielding position {fielding_pos}"
+        fielding_positions.add(fielding_pos)
+
+    # Check all positions are filled
+    if batting_positions != set(range(9)):
+        missing = set(range(9)) - batting_positions
+        return False, f"{team_name}: Missing batting position(s): {sorted(missing)}"
+
+    if fielding_positions != set(range(9)):
+        missing = set(range(9)) - fielding_positions
+        return False, f"{team_name}: Missing fielding position(s): {sorted(missing)}"
+
+    return True, None
+
+
 
 '''with open("teams.json", mode="w", encoding="utf-8") as write_file:
     json.dump({
@@ -1012,13 +1079,27 @@ class mssApp:
 
     def confirmAndRun(self):
         """Show confirmation dialog before running automation."""
-        away_team = self.comboxAway.get() if self.comboxAway else "Unknown"
-        home_team = self.comboxHome.get() if self.comboxHome else "Unknown"
+        away_team_name = self.comboxAway.get() if self.comboxAway else "Unknown"
+        home_team_name = self.comboxHome.get() if self.comboxHome else "Unknown"
         stadium = stadiums[myFormationizer.stadium[0]] if myFormationizer.stadium[0] < len(stadiums) else "Unknown"
 
+        # Validate both team lineups before proceeding
+        away_valid, away_error = validate_team_lineup(myFormationizer.team1, f"Away ({away_team_name})", charList)
+        home_valid, home_error = validate_team_lineup(myFormationizer.team2, f"Home ({home_team_name})", charList)
+
+        if not away_valid or not home_valid:
+            error_msg = "Cannot run - invalid lineup detected:\n\n"
+            if not away_valid:
+                error_msg += f"• {away_error}\n"
+            if not home_valid:
+                error_msg += f"• {home_error}\n"
+            error_msg += "\nPlease fix the team lineup and try again."
+            showerror("Invalid Lineup", error_msg)
+            return
+
         message = f"Ready to set up match:\n\n"
-        message += f"  Away: {away_team}\n"
-        message += f"  Home: {home_team}\n"
+        message += f"  Away: {away_team_name}\n"
+        message += f"  Home: {home_team_name}\n"
         message += f"  Stadium: {stadium}\n\n"
         message += "Make sure Dolphin is running and you're at the\nmain menu hovering 'Exhibition Mode'.\n\n"
         message += "Continue?"
