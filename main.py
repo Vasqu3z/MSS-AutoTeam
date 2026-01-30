@@ -803,13 +803,13 @@ class mssApp:
         buttonLoad.grid(row=0,column=1)
         buttonRemove = tk.Button(lpaneManage, text="Delete")
         buttonRemove.bind('<ButtonPress-1>', lambda event: self.deleteTeam(comboxTeams),add='+')
-        buttonRemove.bind('<ButtonPress-1>', lambda event: self.updateTeams(comboxAway, comboxHome, comboxTeams),add='+')
+        buttonRemove.bind('<ButtonPress-1>', lambda event: self.updateTeams(self.comboxAway, self.comboxHome, comboxTeams),add='+')
         buttonRemove.grid(row=0,column=2)
         entryName = tk.Entry(lpaneManage, textvariable=currName)
         entryName.grid(row=0,column=3)
         buttonSave = tk.Button(lpaneManage, text="Save")
         buttonSave.bind('<ButtonPress-1>', lambda event: self.saveTeam(currName.get(), self.entries, self.battings, self.fieldings),add='+')
-        buttonSave.bind('<ButtonPress-1>', lambda event: self.updateTeams(comboxAway, comboxHome, comboxTeams), add='+')
+        buttonSave.bind('<ButtonPress-1>', lambda event: self.updateTeams(self.comboxAway, self.comboxHome, comboxTeams), add='+')
         buttonSave.grid(row=0, column= 4)
 
 

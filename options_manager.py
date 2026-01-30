@@ -189,7 +189,7 @@ class OptionsManager:
             try:
                 if 'tmp_path' in locals():
                     os.unlink(tmp_path)
-            except:
+            except Exception:
                 pass
             return False
 
