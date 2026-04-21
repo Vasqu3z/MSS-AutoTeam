@@ -251,7 +251,6 @@ def convert_clb_lineup(lineup_data: dict, mii_list: list) -> Optional[List[List[
         captain_player = lineup_data.get("captain")
         if isinstance(captain_player, dict):
             captain_character_id = resolve_character_id(captain_player, mii_list)
-
     if captain_character_id is not None:
         for i, player in enumerate(team_roster):
             if player[0] == captain_character_id:

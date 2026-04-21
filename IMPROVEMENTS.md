@@ -6,10 +6,10 @@
 
 **Status (April 2026):**
 
-- ✅ Implemented a safety wrapper around `automate()` that calls `release_all_keys()` in a `finally` block.
-- ✅ Implemented try/finally release guarantees in key tap handlers via a shared `_tap_key()` helper.
-- ✅ Implemented a key-hold context manager and applied it to `startGame()` for guaranteed cleanup of held keys.
-- ⏳ Optional future enhancement: key state tracking/verification if we want richer diagnostics.
+- Done: Implemented a safety wrapper around `automate()` that calls `release_all_keys()` in a `finally` block.
+- Done: Implemented try/finally release guarantees in key tap handlers via a shared `_tap_key()` helper.
+- Done: Implemented a key-hold context manager and applied it to `startGame()` for guaranteed cleanup of held keys.
+- Future: Optional enhancement — key state tracking/verification if we want richer diagnostics.
 
 **Proposed Solutions (reference):**
 
