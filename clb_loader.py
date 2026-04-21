@@ -120,6 +120,9 @@ POSITION_MAP = {
 # Reverse lookup: index -> position name
 POSITION_NAMES = {v: k for k, v in POSITION_MAP.items()}
 
+# Captain-eligible character IDs in MSS order used by AutoTeam.
+CAPTAIN_CHARACTER_IDS = [0, 1, 2, 3, 4, 5, 6, 9, 10, 11, 17, 19]
+
 
 def resolve_character_id(player: dict, mii_list: list) -> Optional[int]:
     """
@@ -220,7 +223,34 @@ def convert_clb_lineup(lineup_data: dict, mii_list: list) -> Optional[List[List[
     # Preserve explicit captain selection (if present).
     # AutoTeam stores captain preference as "first entry in team list",
     # so move the saved captain to index 0 when possible.
-    captain_character_id = lineup_data.get("captainCharacterId")
+    captain_character_id = None
+
+    raw_captain_character_id = lineup_data.get("captainCharacterId")
+    if isinstance(raw_captain_character_id, int):
+        captain_character_id = raw_captain_character_id
+    elif isinstance(raw_captain_character_id, str):
+        raw_text = raw_captain_character_id.strip()
+        if raw_text.isdigit():
+            captain_character_id = int(raw_text)
+        elif raw_text in CHARACTER_MAP:
+            captain_character_id = CHARACTER_MAP[raw_text]
+
+    # Backward-compat: if captainCharacterId was saved as captain-list index,
+    # map it to an MSS character ID.
+    if captain_character_id is not None and captain_character_id not in [p[0] for p in team_roster]:
+        if 0 <= captain_character_id < len(CAPTAIN_CHARACTER_IDS):
+            captain_character_id = CAPTAIN_CHARACTER_IDS[captain_character_id]
+
+    # Support alternate metadata keys from other tools/exports.
+    if captain_character_id is None:
+        captain_database_id = lineup_data.get("captainDatabaseId")
+        if isinstance(captain_database_id, str) and captain_database_id in CHARACTER_MAP:
+            captain_character_id = CHARACTER_MAP[captain_database_id]
+
+    if captain_character_id is None:
+        captain_player = lineup_data.get("captain")
+        if isinstance(captain_player, dict):
+            captain_character_id = resolve_character_id(captain_player, mii_list)
     if captain_character_id is not None:
         for i, player in enumerate(team_roster):
             if player[0] == captain_character_id:

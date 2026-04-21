@@ -486,35 +486,58 @@ class Formationizer:
         DMM.write_byte(0x811f769f, self.stadium[1])
         c1 = -1
         c2 = -1
+        c1_source = "unknown"
+        c2_source = "unknown"
 
         # First, check if the first batter is already a valid captain
         if self.team1[0][0] in captains:
             c1 = captains.index(self.team1[0][0])
+            c1_source = "team[0]"
         if self.team2[0][0] in captains:
             c2 = captains.index(self.team2[0][0])
+            c2_source = "team[0]"
 
         # If no valid captain in first slot, scan roster for any valid captain
         if c1 == -1:
-            roster_captain = find_valid_captain(self.team1)
-            if roster_captain is not None:
-                c1 = captains.index(roster_captain)
-                print(f"[Auto-Captain] Away team: Found {charList[roster_captain]} in roster")
+            # Prefer user-selected default captain when lineup lacks explicit captain metadata.
+            default_away_id = options.default_away_captain_id
+            team1_ids = {player[0] for player in self.team1}
+            if default_away_id in captains and default_away_id in team1_ids:
+                c1 = captains.index(default_away_id)
+                c1_source = "away default (present in roster)"
+                print(f"[Auto-Captain] Away team: Using default {charList[default_away_id]} present in roster")
             else:
-                # Fall back to default captain
-                default_away_id = options.default_away_captain_id
-                c1 = captains.index(default_away_id) if default_away_id in captains else 0
-                print(f"[Auto-Captain] Away team: No valid captain in roster, using default")
+                roster_captain = find_valid_captain(self.team1)
+                if roster_captain is not None:
+                    c1 = captains.index(roster_captain)
+                    c1_source = "first captain in roster scan"
+                    print(f"[Auto-Captain] Away team: Found {charList[roster_captain]} in roster")
+                else:
+                    c1 = captains.index(default_away_id) if default_away_id in captains else 0
+                    c1_source = "away default (not in roster fallback)"
+                    print(f"[Auto-Captain] Away team: No valid captain in roster, using default")
 
         if c2 == -1:
-            roster_captain = find_valid_captain(self.team2)
-            if roster_captain is not None:
-                c2 = captains.index(roster_captain)
-                print(f"[Auto-Captain] Home team: Found {charList[roster_captain]} in roster")
+            # Prefer user-selected default captain when lineup lacks explicit captain metadata.
+            default_home_id = options.default_home_captain_id
+            team2_ids = {player[0] for player in self.team2}
+            if default_home_id in captains and default_home_id in team2_ids:
+                c2 = captains.index(default_home_id)
+                c2_source = "home default (present in roster)"
+                print(f"[Auto-Captain] Home team: Using default {charList[default_home_id]} present in roster")
             else:
-                # Fall back to default captain
-                default_home_id = options.default_home_captain_id
-                c2 = captains.index(default_home_id) if default_home_id in captains else (1 if len(captains) > 1 else 0)
-                print(f"[Auto-Captain] Home team: No valid captain in roster, using default")
+                roster_captain = find_valid_captain(self.team2)
+                if roster_captain is not None:
+                    c2 = captains.index(roster_captain)
+                    c2_source = "first captain in roster scan"
+                    print(f"[Auto-Captain] Home team: Found {charList[roster_captain]} in roster")
+                else:
+                    c2 = captains.index(default_home_id) if default_home_id in captains else (1 if len(captains) > 1 else 0)
+                    c2_source = "home default (not in roster fallback)"
+                    print(f"[Auto-Captain] Home team: No valid captain in roster, using default")
+
+        print(f"[Auto-Captain] Away selected: {charList[captains[c1]]} ({c1_source})")
+        print(f"[Auto-Captain] Home selected: {charList[captains[c2]]} ({c2_source})")
 
         DMM.write_byte(0x811f76ac, c1)
         DMM.write_byte(0x811f76ad, c2)
