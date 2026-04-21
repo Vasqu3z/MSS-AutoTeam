@@ -4,7 +4,14 @@
 
 **Issue:** Potential for stuck keyboard inputs during automation if an exception occurs between `kb.press()` and `kb.release()` calls, or if focus changes mid-sequence.
 
-**Proposed Solutions (in priority order):**
+**Status (April 2026):**
+
+- ✅ Implemented a safety wrapper around `automate()` that calls `release_all_keys()` in a `finally` block.
+- ✅ Implemented try/finally release guarantees in key tap handlers via a shared `_tap_key()` helper.
+- ✅ Implemented a key-hold context manager and applied it to `startGame()` for guaranteed cleanup of held keys.
+- ⏳ Optional future enhancement: key state tracking/verification if we want richer diagnostics.
+
+**Proposed Solutions (reference):**
 
 1. **Safety wrapper around `automate()`**
    - Add `release_all_keys()` method to `Formationizer` class
@@ -41,4 +48,4 @@
    - Track which keys are currently pressed in a set
    - Allows verification and forced cleanup if needed
 
-**Related files:** `main.py` (Formationizer class, lines 535-603)
+**Related files:** `main.py` (Formationizer class input methods and automation flow)

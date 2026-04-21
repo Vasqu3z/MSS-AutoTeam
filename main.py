@@ -11,6 +11,8 @@ import pygetwindow as gw
 import json
 import keyboard as kb
 import time
+import threading
+from contextlib import contextmanager
 from mii import MiiDatabase, MiiParser, MiiType
 
 # Import CLB loader module
@@ -207,29 +209,33 @@ class Formationizer:
         self.rules = rules
 
     def automate(self):
-        print("Starting")
-        fl = gw.getAllWindows()
-        for f in fl:
-            if "Dolphin" in f.title and " | " in f.title:
-                f.activate()
-        time.sleep(0.2)
-        self.execute("awawawwwaawwwwwwwwrrawwwwd")
-        self.finalize()
-        self.generate_whodeyy_code()
-        self.sel_code_rev()
-        self.press_a()
+        try:
+            print("Starting")
+            fl = gw.getAllWindows()
+            for f in fl:
+                if "Dolphin" in f.title and " | " in f.title:
+                    f.activate()
+            time.sleep(0.2)
+            self.execute("awawawwwaawwwwwwwwrrawwwwd")
+            self.finalize()
+            self.generate_whodeyy_code()
+            self.sel_code_rev()
+            self.press_a()
 
-        self.execute("wwulur")
-        self.lineup_code_rev(self.team1)
-        self.execute("druldr")
-        self.lineup_code_rev(self.team2)
-        self.execute("uruaw")
+            self.execute("wwulur")
+            self.lineup_code_rev(self.team1)
+            self.execute("druldr")
+            self.lineup_code_rev(self.team2)
+            self.execute("uruaw")
 
-        time.sleep(0.25)
-        self.finalize()
-        time.sleep(0.25)
-        if options.auto_start_game:
-            self.startGame()
+            time.sleep(0.25)
+            self.finalize()
+            time.sleep(0.25)
+            if options.auto_start_game:
+                self.startGame()
+        finally:
+            # Defensive cleanup in case automation exits unexpectedly.
+            self.release_all_keys()
 
     def sel_code_rev(self):
         t1miis = []
@@ -480,35 +486,58 @@ class Formationizer:
         DMM.write_byte(0x811f769f, self.stadium[1])
         c1 = -1
         c2 = -1
+        c1_source = "unknown"
+        c2_source = "unknown"
 
         # First, check if the first batter is already a valid captain
         if self.team1[0][0] in captains:
             c1 = captains.index(self.team1[0][0])
+            c1_source = "team[0]"
         if self.team2[0][0] in captains:
             c2 = captains.index(self.team2[0][0])
+            c2_source = "team[0]"
 
         # If no valid captain in first slot, scan roster for any valid captain
         if c1 == -1:
-            roster_captain = find_valid_captain(self.team1)
-            if roster_captain is not None:
-                c1 = captains.index(roster_captain)
-                print(f"[Auto-Captain] Away team: Found {charList[roster_captain]} in roster")
+            # Prefer user-selected default captain when lineup lacks explicit captain metadata.
+            default_away_id = options.default_away_captain_id
+            team1_ids = {player[0] for player in self.team1}
+            if default_away_id in captains and default_away_id in team1_ids:
+                c1 = captains.index(default_away_id)
+                c1_source = "away default (present in roster)"
+                print(f"[Auto-Captain] Away team: Using default {charList[default_away_id]} present in roster")
             else:
-                # Fall back to default captain
-                default_away_id = options.default_away_captain_id
-                c1 = captains.index(default_away_id) if default_away_id in captains else 0
-                print(f"[Auto-Captain] Away team: No valid captain in roster, using default")
+                roster_captain = find_valid_captain(self.team1)
+                if roster_captain is not None:
+                    c1 = captains.index(roster_captain)
+                    c1_source = "first captain in roster scan"
+                    print(f"[Auto-Captain] Away team: Found {charList[roster_captain]} in roster")
+                else:
+                    c1 = captains.index(default_away_id) if default_away_id in captains else 0
+                    c1_source = "away default (not in roster fallback)"
+                    print(f"[Auto-Captain] Away team: No valid captain in roster, using default")
 
         if c2 == -1:
-            roster_captain = find_valid_captain(self.team2)
-            if roster_captain is not None:
-                c2 = captains.index(roster_captain)
-                print(f"[Auto-Captain] Home team: Found {charList[roster_captain]} in roster")
+            # Prefer user-selected default captain when lineup lacks explicit captain metadata.
+            default_home_id = options.default_home_captain_id
+            team2_ids = {player[0] for player in self.team2}
+            if default_home_id in captains and default_home_id in team2_ids:
+                c2 = captains.index(default_home_id)
+                c2_source = "home default (present in roster)"
+                print(f"[Auto-Captain] Home team: Using default {charList[default_home_id]} present in roster")
             else:
-                # Fall back to default captain
-                default_home_id = options.default_home_captain_id
-                c2 = captains.index(default_home_id) if default_home_id in captains else (1 if len(captains) > 1 else 0)
-                print(f"[Auto-Captain] Home team: No valid captain in roster, using default")
+                roster_captain = find_valid_captain(self.team2)
+                if roster_captain is not None:
+                    c2 = captains.index(roster_captain)
+                    c2_source = "first captain in roster scan"
+                    print(f"[Auto-Captain] Home team: Found {charList[roster_captain]} in roster")
+                else:
+                    c2 = captains.index(default_home_id) if default_home_id in captains else (1 if len(captains) > 1 else 0)
+                    c2_source = "home default (not in roster fallback)"
+                    print(f"[Auto-Captain] Home team: No valid captain in roster, using default")
+
+        print(f"[Auto-Captain] Away selected: {charList[captains[c1]]} ({c1_source})")
+        print(f"[Auto-Captain] Home selected: {charList[captains[c2]]} ({c2_source})")
 
         DMM.write_byte(0x811f76ac, c1)
         DMM.write_byte(0x811f76ad, c2)
@@ -532,58 +561,56 @@ class Formationizer:
                     return [r, c]
         return -1
 
-    def press_a(self):
-        kb.press('k')
-        time.sleep(INPUT_DELAY)
-        kb.release('k')
+    def _tap_key(self, key):
+        kb.press(key)
+        try:
+            time.sleep(INPUT_DELAY)
+        finally:
+            kb.release(key)
         time.sleep(RELEASE_DELAY)
+
+    def release_all_keys(self):
+        """Best-effort cleanup to prevent stuck inputs after failures."""
+        for key in ['w', 'a', 's', 'd', 'k', 'l', 'q', 'e']:
+            try:
+                kb.release(key)
+            except Exception:
+                pass
+
+    @contextmanager
+    def hold_key(self, key):
+        kb.press(key)
+        try:
+            yield
+        finally:
+            kb.release(key)
+
+    def press_a(self):
+        self._tap_key('k')
 
     def press_b(self):
-        kb.press('l')
-        time.sleep(INPUT_DELAY)
-        kb.release('l')
-        time.sleep(RELEASE_DELAY)
+        self._tap_key('l')
 
     def press_left(self):
-        kb.press('a')
-        time.sleep(INPUT_DELAY)
-        kb.release('a')
-        time.sleep(RELEASE_DELAY)
+        self._tap_key('a')
 
     def press_right(self):
-        kb.press('d')
-        time.sleep(INPUT_DELAY)
-        kb.release('d')
-        time.sleep(RELEASE_DELAY)
+        self._tap_key('d')
 
     def press_up(self):
-        kb.press('w')
-        time.sleep(INPUT_DELAY)
-        kb.release('w')
-        time.sleep(RELEASE_DELAY)
+        self._tap_key('w')
 
     def press_down(self):
-        kb.press('s')
-        time.sleep(INPUT_DELAY)
-        kb.release('s')
-        time.sleep(RELEASE_DELAY)
+        self._tap_key('s')
 
     def press_plus(self):
-        kb.press('e')
-        time.sleep(INPUT_DELAY)
-        kb.release('e')
-        time.sleep(RELEASE_DELAY)
+        self._tap_key('e')
 
 
     def startGame(self):
-        kb.press('q')
-        time.sleep(INPUT_DELAY)
-        kb.press('k')
-        time.sleep(INPUT_DELAY)
-        kb.release('k')
-        time.sleep(RELEASE_DELAY)
-        kb.release('q')
-        time.sleep(RELEASE_DELAY)
+        with self.hold_key('q'):
+            time.sleep(INPUT_DELAY)
+            self.press_a()
 
     def execute(self, instructions):
         for i in instructions:
@@ -651,6 +678,12 @@ class mssApp:
         self.buttonStart = None  # Will hold reference to Run button
         self.comboxAway = None   # Will hold reference to Away combobox
         self.comboxHome = None   # Will hold reference to Home combobox
+        self.comboxTeamsManage = None
+        self.buttonLoadTeam = None
+        self.buttonDeleteTeam = None
+        self.teamValidationVar = tk.StringVar(value="Build a full 9-player lineup.")
+        self.optionsStatusVar = tk.StringVar(value="")
+        self.isRunningAutomation = False
 
         nb= ttk.Notebook(self.master)
 
@@ -778,9 +811,17 @@ class mssApp:
             command=lambda: self.updateAutoStart(varAutoStart.get())
         )
         checkboxAutoStart.grid(row=4, column=0, sticky="w")
-        labelWarning = tk.Label(tabMain, text="Before using, make sure you have the following Gecko code enabled: \n040802b4 60000000\n040802b8 60000000\n0406aed8 48000b80\n"+
-                                              "And set these to the controls:\nWSAD = Up/Down/Left/Right\nK = A button\nL = B button\nQ = - button\nE = + button\n"+
-                                              "Hit the Run button while the game is open and you are \nat the main menu, hovering \"Exhibition Mode\"\nProgrammed by STG, with help from Whodeyy & Kircher \nand the rest of the MSS community")
+        labelWarning = tk.Label(
+            tabMain,
+            justify="left",
+            text="Setup checklist:\n"
+                 "1) Enable Gecko codes (use Copy Gecko codes).\n"
+                 "2) Map controls: WSAD movement, K=A, L=B, Q=-, E=+.\n"
+                 "3) Open Dolphin at main menu, hover Exhibition Mode.\n"
+                 "4) Click Run it!\n\n"
+                 "Programmed by STG, with help from Whodeyy & Kircher\n"
+                 "and the rest of the MSS community."
+        )
         labelWarning.grid(row=1,column=1, rowspan=4)
         buttonCopyCodes = tk.Button(
             tabMain,
@@ -797,14 +838,19 @@ class mssApp:
         comboxTeams= ttk.Combobox(lpaneManage, values=team_names, state="readonly")
         comboxTeams.set("")
         comboxTeams.grid(row=0, column=0)
-        buttonLoad = tk.Button(lpaneManage, text="Load")
-        buttonLoad.bind('<ButtonPress-1>', lambda event: self.loadTeam(self.entries, self.battings, self.fieldings, team_names.index(comboxTeams.get())),add='+')
-        buttonLoad.bind('<ButtonPress-1>', lambda event: currName.set(comboxTeams.get()),add='+')
+        self.comboxTeamsManage = comboxTeams
+        comboxTeams.bind('<<ComboboxSelected>>', lambda event: self.onManageTeamSelected(currName), add='+')
+
+        buttonLoad = tk.Button(lpaneManage, text="Load", state='disabled',
+                               command=lambda: self.handleLoadTeam(currName))
         buttonLoad.grid(row=0,column=1)
-        buttonRemove = tk.Button(lpaneManage, text="Delete")
-        buttonRemove.bind('<ButtonPress-1>', lambda event: self.deleteTeam(comboxTeams),add='+')
-        buttonRemove.bind('<ButtonPress-1>', lambda event: self.updateTeams(self.comboxAway, self.comboxHome, comboxTeams),add='+')
+        self.buttonLoadTeam = buttonLoad
+
+        buttonRemove = tk.Button(lpaneManage, text="Delete", state='disabled',
+                                 command=self.handleDeleteTeam)
         buttonRemove.grid(row=0,column=2)
+        self.buttonDeleteTeam = buttonRemove
+
         entryName = tk.Entry(lpaneManage, textvariable=currName)
         entryName.grid(row=0,column=3)
         buttonSave = tk.Button(lpaneManage, text="Save")
@@ -819,6 +865,9 @@ class mssApp:
         lpaneBatting.grid(row=1, column=1)
         lpaneFielding = tk.LabelFrame(tabTeams, text="Fielding")
         lpaneFielding.grid(row=2, column=1)
+        tk.Label(tabTeams, textvariable=self.teamValidationVar, anchor='w').grid(
+            row=3, column=0, columnspan=2, sticky='w', pady=(8, 0)
+        )
 
 
 
@@ -882,6 +931,10 @@ class mssApp:
         varAwayDefault.set(captainNameValues[away_idx])
         comboAwayDefault = ttk.Combobox(lpaneDefaults, textvariable=varAwayDefault, values=captainNameValues, state='readonly')
         comboAwayDefault.grid(row=0, column=1, padx=5, pady=2)
+        comboAwayDefault.bind(
+            '<<ComboboxSelected>>',
+            lambda event: self.updateDefaultCaptain('away', varAwayDefault.get(), captainNameValues)
+        )
 
         tk.Label(lpaneDefaults, text='Home default:').grid(row=1, column=0, sticky='w')
         varHomeDefault = tk.StringVar()
@@ -890,11 +943,13 @@ class mssApp:
         varHomeDefault.set(captainNameValues[home_idx])
         comboHomeDefault = ttk.Combobox(lpaneDefaults, textvariable=varHomeDefault, values=captainNameValues, state='readonly')
         comboHomeDefault.grid(row=1, column=1, padx=5, pady=2)
-
-        buttonDefaultsSave = tk.Button(lpaneDefaults, text='Save Defaults')
-        buttonDefaultsSave.grid(row=2, column=1, sticky='e', pady=(6, 0))
-        buttonDefaultsSave.bind('<ButtonPress-1>',
-                               lambda event: self.updateDefaultCaptains(varAwayDefault.get(), varHomeDefault.get(), captainNameValues))
+        comboHomeDefault.bind(
+            '<<ComboboxSelected>>',
+            lambda event: self.updateDefaultCaptain('home', varHomeDefault.get(), captainNameValues)
+        )
+        tk.Label(lpaneDefaults, textvariable=self.optionsStatusVar, anchor='w').grid(
+            row=2, column=0, columnspan=2, sticky='w', pady=(6, 0)
+        )
 
 
         nb.add(tabMain, text="Main")
@@ -906,6 +961,7 @@ class mssApp:
     def saveTeam(self, name, ent, bat, fld):
         #print(ent)
         if not self.validTeam:
+            self.teamValidationVar.set(f"Lineup invalid: {self.errorMessage}")
             showerror("Team Save Error", self.errorMessage)
         else:
             team = []
@@ -939,6 +995,7 @@ class mssApp:
                 # Save to CLB format file
                 if save_clb_lineup(SAVES_DIR, name, team, charList):
                     showinfo("Team added successfully", "Team \"" + name + "\" added to register")
+            self.teamValidationVar.set("Lineup valid and saved.")
 
 
         print(team_names)
@@ -1009,22 +1066,30 @@ class mssApp:
             e.configure(values=sorted(charList))
 
 
-    def updateDefaultCaptains(self, away_name, home_name, captainNameValues):
-        """Persist default captain selections to options.json as character IDs."""
+    def updateDefaultCaptain(self, side, captain_name, captainNameValues):
+        """Persist one default captain selection to options.json as a character ID."""
         try:
-            away_idx = captainNameValues.index(away_name)
-            home_idx = captainNameValues.index(home_name)
+            captain_idx = captainNameValues.index(captain_name)
         except ValueError:
-            showerror('Error', 'Could not save defaults: invalid captain selection.')
+            self.optionsStatusVar.set("Failed to save captain: invalid selection.")
+            showerror('Error', 'Could not save default captain: invalid captain selection.')
             return
 
-        options.default_away_captain_id = captains[away_idx]
-        options.default_home_captain_id = captains[home_idx]
-
-        if options.save():
-            showinfo('Saved', 'Default captains saved!')
+        if side == 'away':
+            options.default_away_captain_id = captains[captain_idx]
+        elif side == 'home':
+            options.default_home_captain_id = captains[captain_idx]
         else:
+            self.optionsStatusVar.set("Failed to save captain: invalid side.")
+            showerror('Error', 'Could not save default captain: invalid side.')
+            return
+
+        if not options.save():
+            self.optionsStatusVar.set("Failed to save captain defaults.")
             showerror('Error', 'Failed to save default captains to options')
+            return
+
+        self.optionsStatusVar.set(f"Saved {side} default captain.")
 
     def updateAutoStart(self, enabled):
         options.auto_start_game = bool(enabled)
@@ -1072,16 +1137,18 @@ class mssApp:
     def updateRunButtonState(self):
         """Enable/disable the Run button based on team selection and lineup validity."""
         if self.buttonStart:
-            if self.awayTeamSelected and self.homeTeamSelected:
+            if self.isRunningAutomation:
+                self.buttonStart.config(state='disabled', text='Running...')
+            elif self.awayTeamSelected and self.homeTeamSelected:
                 # Also validate both lineups
                 away_valid, _ = validate_team_lineup(myFormationizer.team1, "Away", charList)
                 home_valid, _ = validate_team_lineup(myFormationizer.team2, "Home", charList)
                 if away_valid and home_valid:
-                    self.buttonStart.config(state='normal')
+                    self.buttonStart.config(state='normal', text='Run it!')
                 else:
-                    self.buttonStart.config(state='disabled')
+                    self.buttonStart.config(state='disabled', text='Run it!')
             else:
-                self.buttonStart.config(state='disabled')
+                self.buttonStart.config(state='disabled', text='Run it!')
 
     def confirmAndRun(self):
         """Show confirmation dialog before running automation."""
@@ -1097,7 +1164,30 @@ class mssApp:
         message += "Continue?"
 
         if askyesno("Confirm Match Setup", message):
+            self.startAutomation()
+
+    def startAutomation(self):
+        if self.isRunningAutomation:
+            return
+        self.isRunningAutomation = True
+        self.updateRunButtonState()
+        threading.Thread(target=self._automationWorker, daemon=True).start()
+
+    def _automationWorker(self):
+        err = None
+        try:
             myFormationizer.automate()
+        except Exception as e:
+            err = str(e)
+        self.master.after(0, lambda: self.finishAutomation(err))
+
+    def finishAutomation(self, err_message):
+        self.isRunningAutomation = False
+        self.updateRunButtonState()
+        if err_message:
+            showerror("Automation Error", f"Automation failed: {err_message}")
+        else:
+            showinfo("Done", "Automation sequence completed.")
 
     def updateTeams(self, ca, ch, ct):
         ca.configure(values=team_names)
@@ -1108,8 +1198,44 @@ class mssApp:
             self.comboxAway.configure(values=team_names)
         if self.comboxHome:
             self.comboxHome.configure(values=team_names)
+        self.refreshManageButtons()
         # Teams are now saved as individual CLB JSON files in saves/
         # No need to write teams.json anymore
+
+    def onManageTeamSelected(self, currName):
+        selection = self.comboxTeamsManage.get() if self.comboxTeamsManage else ""
+        currName.set(selection)
+        self.refreshManageButtons()
+
+    def refreshManageButtons(self):
+        has_valid_selection = False
+        if self.comboxTeamsManage:
+            selected = self.comboxTeamsManage.get()
+            has_valid_selection = selected in team_names
+        if self.buttonLoadTeam:
+            self.buttonLoadTeam.config(state='normal' if has_valid_selection else 'disabled')
+        if self.buttonDeleteTeam:
+            self.buttonDeleteTeam.config(state='normal' if has_valid_selection else 'disabled')
+
+    def handleLoadTeam(self, currName):
+        if not self.comboxTeamsManage:
+            return
+        team_name = self.comboxTeamsManage.get()
+        if team_name not in team_names:
+            showerror("Load Team Error", "Select a team to load.")
+            return
+        self.loadTeam(self.entries, self.battings, self.fieldings, team_names.index(team_name))
+        currName.set(team_name)
+
+    def handleDeleteTeam(self):
+        if not self.comboxTeamsManage:
+            return
+        team_name = self.comboxTeamsManage.get()
+        if team_name not in team_names:
+            showerror("Delete Team Error", "Select a team to delete.")
+            return
+        self.deleteTeam(self.comboxTeamsManage)
+        self.updateTeams(self.comboxAway, self.comboxHome, self.comboxTeamsManage)
 
     def updateLists(self,en,ba,fl):
         self.toBat = ['']
@@ -1154,6 +1280,10 @@ class mssApp:
             b.configure(values=self.toBat)
         for f in fl:
             f.configure(values=self.toField)
+        if self.validTeam:
+            self.teamValidationVar.set("Lineup valid.")
+        else:
+            self.teamValidationVar.set(f"Lineup invalid: {self.errorMessage}")
 
 
     def loadTeam(self,en, ba, fl, num):
