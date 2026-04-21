@@ -217,6 +217,17 @@ def convert_clb_lineup(lineup_data: dict, mii_list: list) -> Optional[List[List[
     if len(team_roster) < 1:
         return None
 
+    # Preserve explicit captain selection (if present).
+    # AutoTeam stores captain preference as "first entry in team list",
+    # so move the saved captain to index 0 when possible.
+    captain_character_id = lineup_data.get("captainCharacterId")
+    if captain_character_id is not None:
+        for i, player in enumerate(team_roster):
+            if player[0] == captain_character_id:
+                if i != 0:
+                    team_roster.insert(0, team_roster.pop(i))
+                break
+
     return team_roster
 
 
@@ -310,10 +321,13 @@ def autoteam_to_clb_format(team_roster: list, team_name: str, char_list: list) -
         if 0 <= batting_idx < 9:
             batting_order[batting_idx] = player
 
+    captain_character_id = team_roster[0][0] if team_roster else None
+
     return {
         "name": team_name,
         "roster": roster,
         "battingOrder": batting_order,
+        "captainCharacterId": captain_character_id,
         "bench": [],
         "chemistry": {"positive": 0, "negative": 0},
         "exportedAt": datetime.now().isoformat(),
